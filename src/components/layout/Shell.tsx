@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { Logo } from '@/components/ui/Logo'
 import { useEntries } from '@/contexts/EntriesContext'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +23,7 @@ export function Shell() {
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-ink-800 bg-ink-950/90 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 text-lg font-extrabold tracking-tight text-ink-300">
-            {isHome && <Logo size={20} />}
+            {isHome && <span className="text-xl leading-none text-gold-400">卌</span>}
             {title}
           </span>
           <span
