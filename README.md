@@ -49,6 +49,20 @@ Copy `.env.example` to `.env.local` and fill in:
 - Two record types: **inventory** (things you have, with quantity + low-stock alerts) and
   **expense** (money out). The **Stats** page totals spending by month and category.
 
+## Deploy (Cloudflare Pages)
+
+1. Cloudflare → Pages → Create → connect the `tally-ly` GitHub repo.
+2. Build command `npm run build`, output directory `dist`.
+3. Settings → Environment variables → add a **secret** `GEMINI_API_KEY` (no `VITE_` prefix).
+   The `functions/api/extract.ts` proxy reads it server-side, so the key is never in the
+   browser bundle. (Do **not** set `VITE_GEMINI_API_KEY` in production.)
+4. Optionally add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SHEETS_WEBHOOK_URL`,
+   `VITE_SHEETS_TOKEN`, `VITE_DEFAULT_CURRENCY`.
+5. Every `git push` to `main` auto-deploys. Open the HTTPS URL on your phone → Share →
+   Add to Home Screen to install it as an app (voice + camera work over HTTPS).
+
 ## Notes
 - Voice uses `MediaRecorder` + Gemini (not the Web Speech API, which iOS Safari PWAs don't support).
 - The confirmation screen exists so the AI never writes unverified data — you always approve first.
+- In production, Gemini is called through `/api/extract` (a Cloudflare Pages Function) so the
+  API key stays on the server. In local dev, `VITE_GEMINI_API_KEY` calls Gemini directly.

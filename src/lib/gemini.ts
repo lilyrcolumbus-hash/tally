@@ -2,7 +2,11 @@ import type { EntryDraft, EntryType, ExtractionResult } from '@/types'
 import { CATEGORIES, DEFAULT_CATEGORY_ID } from '@/config/categories'
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-export const isGeminiConfigured = Boolean(apiKey && !apiKey.includes('YOUR_'))
+const hasClientKey = Boolean(apiKey && !apiKey.includes('YOUR_'))
+// In production we call a server-side proxy (/api/extract) so the key is never
+// shipped in the browser bundle. In dev, a VITE_GEMINI_API_KEY calls Gemini directly.
+const useProxy = !hasClientKey && import.meta.env.PROD
+export const isGeminiConfigured = hasClientKey || useProxy
 
 const MODEL = 'gemini-2.5-flash'
 
@@ -61,8 +65,49 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   return { type, product, category, quantity, unitPrice, total, note }
 }
 
+type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }
+
+interface GeminiResponse {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+}
+
+const GENERATION_CONFIG = { responseMimeType: 'application/json', temperature: 0.2 }
+
+/** Calls Gemini directly (dev, with client key) or via the secure proxy (prod). */
+async function geminiGenerate(parts: GeminiPart[]): Promise<string> {
+  if (hasClientKey && apiKey) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: GENERATION_CONFIG }),
+      },
+    )
+    if (!res.ok) throw new Error(`AI error ${res.status}`)
+    return readText((await res.json()) as GeminiResponse)
+  }
+
+  // Production: the key lives only on the server (Cloudflare Pages Function).
+  const res = await fetch('/api/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parts, generationConfig: GENERATION_CONFIG }),
+  })
+  const data = (await res.json()) as { text?: string; error?: string }
+  if (!res.ok || data.error) throw new Error(data.error ?? `AI error ${res.status}`)
+  if (typeof data.text !== 'string') throw new Error('Empty AI response')
+  return data.text
+}
+
+function readText(data: GeminiResponse): string {
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+  if (typeof text !== 'string') throw new Error('Empty AI response')
+  return text
+}
+
 export async function extractEntries(input: ExtractionInput): Promise<ExtractionResult> {
-  if (!isGeminiConfigured || !apiKey) {
+  if (!isGeminiConfigured) {
     // Offline mode can only read TYPED text. Voice/photo carry no text to parse —
     // returning a blank draft there would be inventing a record we never read.
     if (!input.text || !input.text.trim()) {
@@ -71,26 +116,18 @@ export async function extractEntries(input: ExtractionInput): Promise<Extraction
     return { drafts: [fallbackParse(input)], usedFallback: true }
   }
 
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-  })
-
-  const parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
-    { text: buildPrompt(input) },
-  ]
+  const parts: GeminiPart[] = [{ text: buildPrompt(input) }]
   if (input.audio) parts.push({ inlineData: { data: input.audio.base64, mimeType: input.audio.mimeType } })
   if (input.image) parts.push({ inlineData: { data: input.image.base64, mimeType: input.image.mimeType } })
 
-  const result = await model.generateContent(parts)
-  const text = result.response.text()
+  const text = await geminiGenerate(parts)
   const parsed: unknown = JSON.parse(text)
   const rawDrafts: RawDraft[] = Array.isArray(parsed) ? parsed : [parsed as RawDraft]
-  const drafts = rawDrafts.map((raw) => normalizeDraft(raw, input.defaultType)).filter((d) => d.product || d.total !== null)
+  const drafts = rawDrafts
+    .map((raw) => normalizeDraft(raw, input.defaultType))
+    .filter((d) => d.product || d.total !== null)
 
-  if (drafts.length === 0) drafts.push(fallbackParse(input))
+  if (drafts.length === 0 && input.text && input.text.trim()) drafts.push(fallbackParse(input))
   return { drafts, usedFallback: false }
 }
 
