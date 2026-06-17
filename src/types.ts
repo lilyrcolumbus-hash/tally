@@ -1,4 +1,4 @@
-// Core data model for Tally.ly
+// Core data model for Tally
 
 export type EntryType = 'inventory' | 'expense'
 export type EntrySource = 'voice' | 'photo' | 'text'

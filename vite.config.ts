@@ -13,9 +13,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Tally.ly — Inventory & Money',
-        short_name: 'Tally.ly',
-        description: 'Tell it by voice, photo or text — Tally.ly tracks your inventory and spending automatically.',
+        name: 'Tally — Inventory & Money',
+        short_name: 'Tally',
+        description: 'Tell it by voice, photo or text — Tally tracks your inventory and spending automatically.',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

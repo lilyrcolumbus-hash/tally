@@ -152,7 +152,7 @@ export function SettingsPage() {
         </Card>
       )}
 
-      <p className="px-2 text-center text-[11px] text-ink-700">Tally.ly — your inventory &amp; money, tallied.</p>
+      <p className="px-2 text-center text-[11px] text-ink-700">Tally — your inventory &amp; money, tallied.</p>
     </div>
   )
 }

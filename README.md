@@ -1,6 +1,6 @@
-# Tally.ly — Inventory & Money, tallied
+# Tally — Inventory & Money, tallied
 
-Tell it by **voice**, snap a **receipt photo**, or **type** it — Tally.ly extracts the item,
+Tell it by **voice**, snap a **receipt photo**, or **type** it — Tally extracts the item,
 quantity and cost, calculates totals, and saves it. Track your inventory and your spending
 in one place, and mirror everything to a Google Sheet.
 
@@ -51,7 +51,7 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ## Deploy (Cloudflare Pages)
 
-1. Cloudflare → Pages → Create → connect the `tally-ly` GitHub repo.
+1. Cloudflare → Pages → Create → connect the `tally` GitHub repo.
 2. Build command `npm run build`, output directory `dist`.
 3. Settings → Environment variables → add a **secret** `GEMINI_API_KEY` (no `VITE_` prefix).
    The `functions/api/extract.ts` proxy reads it server-side, so the key is never in the
