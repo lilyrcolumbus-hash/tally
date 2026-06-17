@@ -1,5 +1,5 @@
 /**
- * Tally.ly — Google Sheets mirror.
+ * Tally — Google Sheets mirror.
  *
  * Setup (one time):
  *  1. Create a blank Google Sheet.
@@ -77,7 +77,9 @@ function entryToRow(entry) {
 }
 
 function findRowById(sheet, id) {
-  var ids = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 0), 1).getValues()
+  var lastRow = sheet.getLastRow()
+  if (lastRow < 2) return -1 // only the header (or empty) — no data rows to scan
+  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0]) === String(id)) return i + 2 // 1-based + header
   }
