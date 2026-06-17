@@ -1,6 +1,7 @@
 import type { Entry } from '@/types'
 
 const webhook = import.meta.env.VITE_SHEETS_WEBHOOK_URL as string | undefined
+const token = import.meta.env.VITE_SHEETS_TOKEN as string | undefined
 export const isSheetsConfigured = Boolean(webhook && webhook.startsWith('http'))
 
 export type SheetAction = 'upsert' | 'delete'
@@ -16,7 +17,7 @@ export async function pushToSheet(action: SheetAction, entry: Entry): Promise<vo
     await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, entry }),
+      body: JSON.stringify({ action, entry, token }),
       keepalive: true,
     })
   } catch (err) {

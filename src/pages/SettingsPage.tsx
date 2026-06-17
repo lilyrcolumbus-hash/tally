@@ -119,7 +119,7 @@ export function SettingsPage() {
           {user ? (
             <div className="flex items-center justify-between">
               <span className="text-sm text-ink-400">{user.email}</span>
-              <Button variant="secondary" size="sm" onClick={() => void signOut().then(reload)}>
+              <Button variant="secondary" size="sm" onClick={() => void signOut()}>
                 Sign out
               </Button>
             </div>

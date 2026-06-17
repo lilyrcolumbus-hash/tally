@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Entry } from '@/types'
 import { listEntries, addEntry, updateEntry, removeEntry, storageMode, type StorageMode } from '@/lib/store'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,17 +22,23 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<StorageMode>('local')
+  const requestId = useRef(0)
 
   const reload = useCallback(async (): Promise<void> => {
+    const id = ++requestId.current
     setLoading(true)
     setError(null)
     try {
-      setMode(await storageMode())
-      setEntries(await listEntries())
+      const nextMode = await storageMode()
+      const data = await listEntries()
+      if (id !== requestId.current) return // a newer reload superseded this one
+      setMode(nextMode)
+      setEntries(data)
     } catch (err) {
+      if (id !== requestId.current) return
       setError(err instanceof Error ? err.message : 'Could not load your data')
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
   }, [])
 

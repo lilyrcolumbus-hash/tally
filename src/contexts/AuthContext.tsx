@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return
     let active = true
+    let subscription: { unsubscribe: () => void } | null = null
 
     const init = async () => {
       const supabase = await getSupabase()
@@ -37,11 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(sessionUser ? { id: sessionUser.id, email: sessionUser.email ?? null } : null)
         setLoading(false)
       }
-      supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
         if (!active) return
         const u = session?.user
         setUser(u ? { id: u.id, email: u.email ?? null } : null)
       })
+      subscription = listener.subscription
     }
 
     init().catch((err) => {
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false
+      subscription?.unsubscribe()
     }
   }, [])
 

@@ -8,8 +8,12 @@
  *       - Execute as: Me
  *       - Who has access: Anyone
  *  4. Copy the Web app URL and put it in the app's VITE_SHEETS_WEBHOOK_URL.
+ *  5. (Recommended) Lock it down: Project Settings → Script Properties →
+ *       add a property TALLY_TOKEN = some-long-random-string, and set the SAME
+ *       value in the app's VITE_SHEETS_TOKEN. Requests without it are rejected,
+ *       so the public URL can't be used to write/delete your rows.
  *
- * The app POSTs { action: 'upsert' | 'delete', entry: {...} }.
+ * The app POSTs { action: 'upsert' | 'delete', entry: {...}, token: '...' }.
  * Rows are keyed by entry id, so edits/deletes stay in sync.
  */
 
@@ -24,6 +28,10 @@ function doPost(e) {
   lock.waitLock(30000)
   try {
     var body = JSON.parse(e.postData.contents)
+    var expected = PropertiesService.getScriptProperties().getProperty('TALLY_TOKEN')
+    if (expected && body.token !== expected) {
+      return jsonOut({ ok: false, error: 'unauthorized' })
+    }
     var sheet = getSheet()
     if (body.action === 'delete') {
       deleteRowById(sheet, body.entry.id)

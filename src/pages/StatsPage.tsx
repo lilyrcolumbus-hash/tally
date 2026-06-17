@@ -1,18 +1,21 @@
 import { useMemo } from 'react'
 import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById } from '@/config/categories'
-import { formatCurrency, currentMonthKey, monthKey } from '@/lib/utils'
+import { formatCurrency, currentMonthKey, monthKey, dominantCurrency } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { AlertTriangle, TrendingUp } from 'lucide-react'
 
 export function StatsPage() {
   const { entries } = useEntries()
-  const currency = entries[0]?.currency ?? 'USD'
   const thisMonth = currentMonthKey()
+  const currency = useMemo(() => dominantCurrency(entries.filter((e) => e.type === 'expense')), [entries])
 
   const monthExpenses = useMemo(
-    () => entries.filter((e) => e.type === 'expense' && monthKey(e.createdAt) === thisMonth),
-    [entries, thisMonth],
+    () =>
+      entries.filter(
+        (e) => e.type === 'expense' && e.currency === currency && monthKey(e.createdAt) === thisMonth,
+      ),
+    [entries, thisMonth, currency],
   )
 
   const monthTotal = monthExpenses.reduce((sum, e) => sum + (e.total ?? 0), 0)

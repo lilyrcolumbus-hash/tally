@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { EntryList } from '@/components/EntryList'
 import { useEntries } from '@/contexts/EntriesContext'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, dominantCurrency } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { AlertTriangle } from 'lucide-react'
 
@@ -14,8 +14,10 @@ export function InventoryPage() {
     (e) => e.quantity !== null && e.lowStockThreshold !== null && e.quantity <= e.lowStockThreshold,
   )
   const totalUnits = items.reduce((sum, e) => sum + (e.quantity ?? 0), 0)
-  const totalValue = items.reduce((sum, e) => sum + (e.total ?? 0), 0)
-  const currency = items[0]?.currency ?? 'USD'
+  const currency = dominantCurrency(items)
+  const totalValue = items
+    .filter((e) => e.currency === currency)
+    .reduce((sum, e) => sum + (e.total ?? 0), 0)
 
   // Low-stock items float to the top.
   const sorted = [...items].sort((a, b) => {

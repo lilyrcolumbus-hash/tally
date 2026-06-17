@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Mic, Camera, Send, Square, Loader2 } from 'lucide-react'
 import type { Entry, EntryDraft, EntrySource, EntryType } from '@/types'
-import { extractEntries } from '@/lib/gemini'
+import { extractEntries, isGeminiConfigured } from '@/lib/gemini'
 import { useRecorder } from '@/hooks/useRecorder'
 import { useEntries } from '@/contexts/EntriesContext'
 import { loadSettings } from '@/lib/settings'
@@ -54,6 +54,10 @@ export function CapturePanel() {
   }
 
   const handleMic = async () => {
+    if (!isGeminiConfigured) {
+      toast('Voice needs the AI key. Type it for now, or add VITE_GEMINI_API_KEY.', { icon: '🎤' })
+      return
+    }
     if (recorder.isRecording) {
       const result = await recorder.stop()
       if (!result) {
@@ -72,6 +76,10 @@ export function CapturePanel() {
   }
 
   const handlePhoto = async (file: File) => {
+    if (!isGeminiConfigured) {
+      toast('Receipt photos need the AI key. Type it for now, or add VITE_GEMINI_API_KEY.', { icon: '📸' })
+      return
+    }
     const base64 = await blobToBase64(file)
     await runExtraction({ image: { base64, mimeType: file.type || 'image/jpeg' } }, 'photo')
   }

@@ -63,6 +63,11 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
 
 export async function extractEntries(input: ExtractionInput): Promise<ExtractionResult> {
   if (!isGeminiConfigured || !apiKey) {
+    // Offline mode can only read TYPED text. Voice/photo carry no text to parse —
+    // returning a blank draft there would be inventing a record we never read.
+    if (!input.text || !input.text.trim()) {
+      return { drafts: [], usedFallback: true }
+    }
     return { drafts: [fallbackParse(input)], usedFallback: true }
   }
 
@@ -96,36 +101,57 @@ export async function extractEntries(input: ExtractionInput): Promise<Extraction
  */
 export function fallbackParse(input: ExtractionInput): EntryDraft {
   const text = (input.text ?? '').trim()
-  const lower = text.toLowerCase()
+  const lower = text.toLowerCase().normalize('NFC')
 
-  const numbers = (lower.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => parseFloat(n.replace(',', '.')))
+  const toNum = (s: string): number => parseFloat(s.replace(',', '.'))
+  const allNumbers = (lower.match(/\d+(?:[.,]\d+)?/g) ?? []).map(toNum)
 
-  const qtyMatch = lower.match(/(\d+)\s*(x|paquetes?|unidades?|units?|pcs?|pieces?|cajas?|boxes?|botellas?|bottles?)/)
-  const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : null
+  // Quantity: "5 boxes", "3 x", "2 unidades", "4 bags"
+  const qtyMatch = lower.match(
+    /(\d+(?:[.,]\d+)?)\s*(x\b|paquetes?|unidades?|units?|pcs?|pieces?|cajas?|boxes?|botellas?|bottles?|bolsas?|bags?)/,
+  )
+  const quantity = qtyMatch ? toNum(qtyMatch[1]) : null
 
-  // Prefer a number adjacent to a currency word as the price/amount.
-  const priceMatch = lower.match(/(?:\$|usd|d[oó]lares?|dollars?|euros?|pesos?)\s*(\d+(?:[.,]\d+)?)|(\d+(?:[.,]\d+)?)\s*(?:\$|usd|d[oó]lares?|dollars?|euros?|pesos?)/)
-  let amount: number | null = null
-  if (priceMatch) amount = parseFloat((priceMatch[1] ?? priceMatch[2]).replace(',', '.'))
-  else if (numbers.length) amount = Math.max(...numbers)
+  // An explicitly-marked price: "at 3", "a 3", "@3", "3 each", "3 cada", or next to a currency word.
+  const markerMatch =
+    lower.match(/(?:\bat\b|@|\ba\b(?=\s*\d))\s*(\d+(?:[.,]\d+)?)/) ||
+    lower.match(/(\d+(?:[.,]\d+)?)\s*(?:each|cada|c\/u|por\s+unidad)/)
+  const currencyMatch = lower.match(
+    /(?:\$|usd|d[oó]lares?|dollars?|euros?|pesos?)\s*(\d+(?:[.,]\d+)?)|(\d+(?:[.,]\d+)?)\s*(?:\$|usd|d[oó]lares?|dollars?|euros?|pesos?)/,
+  )
+
+  let markedPrice: number | null = null
+  if (markerMatch) markedPrice = toNum(markerMatch[1])
+  else if (currencyMatch) markedPrice = toNum(currencyMatch[1] ?? currencyMatch[2])
 
   let unitPrice: number | null = null
   let total: number | null = null
-  if (quantity !== null && amount !== null && /cada|each|c\/u|por\s+unidad/.test(lower)) {
-    unitPrice = amount
-    total = quantity * amount
+
+  if (quantity !== null && markedPrice !== null) {
+    // "5 boxes at 3" → the marked number is the unit price.
+    unitPrice = markedPrice
+    total = Math.round(quantity * markedPrice * 100) / 100
+  } else if (markedPrice !== null) {
+    total = markedPrice
   } else {
-    total = amount
+    // No marked price. Only guess when there is exactly one number that isn't the
+    // quantity — otherwise leave it null. Never invent an amount.
+    const nonQty = allNumbers.filter((n) => n !== quantity)
+    if (nonQty.length === 1) total = nonQty[0]
   }
 
   const isExpense = /(gast[eé]|pagu[eé]|spent|paid|bill|factura|recibo)/.test(lower)
   const type: EntryType = isExpense ? 'expense' : input.defaultType
 
-  // Product = remaining words after stripping numbers, units and filler.
+  // Product = remaining words after stripping numbers, units, prepositions and filler.
   const product =
     lower
       .replace(/\d+(?:[.,]\d+)?/g, ' ')
-      .replace(/\b(compr[eé]|gast[eé]|pagu[eé]|bought|spent|paid|a|de|en|the|el|la|los|las|por|cada|each|c\/u|paquetes?|unidades?|units?|cajas?|boxes?|botellas?|d[oó]lares?|dollars?|usd|euros?|pesos?)\b/g, ' ')
+      .replace(
+        /\b(compr[eé]|gast[eé]|pagu[eé]|bought|spent|paid|at|on|of|in|for|to|a|de|del|en|the|el|la|los|las|un|una|por|cada|each|c\/u|x|paquetes?|unidades?|units?|pcs?|pieces?|cajas?|boxes?|botellas?|bottles?|bolsas?|bags?|d[oó]lares?|dollars?|usd|euros?|pesos?)(?=\s|$)/g,
+        ' ',
+      )
+      .replace(/[@$]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim() || null
 

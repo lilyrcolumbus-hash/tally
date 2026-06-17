@@ -14,8 +14,29 @@ export function formatCurrency(amount: number | null, currency = 'USD'): string 
       maximumFractionDigits: 2,
     }).format(amount)
   } catch {
-    return `$${amount.toFixed(2)}`
+    // Unknown/invalid ISO code — show the raw code rather than mislabel as USD.
+    return `${amount.toFixed(2)} ${currency}`
   }
+}
+
+/** The most common currency among entries — used so totals never mix currencies. */
+export function dominantCurrency(entries: ReadonlyArray<{ currency: string }>, fallback = 'USD'): string {
+  if (entries.length === 0) return fallback
+  const counts = new Map<string, number>()
+  for (const e of entries) counts.set(e.currency, (counts.get(e.currency) ?? 0) + 1)
+  let best = fallback
+  let bestN = -1
+  for (const [cur, n] of counts) {
+    if (n > bestN) {
+      best = cur
+      bestN = n
+    }
+  }
+  return best
+}
+
+export function hasMixedCurrencies(entries: ReadonlyArray<{ currency: string }>): boolean {
+  return new Set(entries.map((e) => e.currency)).size > 1
 }
 
 export function formatDate(iso: string): string {
