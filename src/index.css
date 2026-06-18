@@ -2,7 +2,7 @@
 
 @theme {
   /* Dark premium base */
-  --color-ink-950: #0b1120;
+  --color-ink-950: #0a0a1e;
   --color-ink-900: #0f172a;
   --color-ink-800: #1e293b;
   --color-ink-700: #334155;
@@ -38,7 +38,7 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: radial-gradient(1200px 600px at 50% -10%, #14213d 0%, var(--color-ink-950) 55%);
+  background: radial-gradient(1200px 700px at 50% -10%, #15173a 0%, var(--color-ink-950) 55%);
   color: var(--color-ink-300);
   -webkit-font-smoothing: antialiased;
 }

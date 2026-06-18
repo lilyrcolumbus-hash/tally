@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEntries } from '@/contexts/EntriesContext'
-import { categoryById } from '@/config/categories'
+import { categoryById, normalizeCategoryId } from '@/config/categories'
 import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { PeriodToggle } from '@/components/ui/PeriodToggle'
@@ -31,10 +31,11 @@ export function StatsPage() {
     for (const e of entries) {
       if (e.currency !== currency || !inPeriod(e.createdAt, period)) continue
       if (e.type !== 'income' && e.type !== 'expense') continue
-      const c = map.get(e.category) ?? { earned: 0, spent: 0 }
+      const cid = normalizeCategoryId(e.category)
+      const c = map.get(cid) ?? { earned: 0, spent: 0 }
       if (e.type === 'income') c.earned += e.total ?? 0
       else c.spent += e.total ?? 0
-      map.set(e.category, c)
+      map.set(cid, c)
     }
     return [...map.entries()]
       .map(([id, v]) => ({ id, ...v, net: v.earned - v.spent }))
@@ -46,7 +47,8 @@ export function StatsPage() {
     const cats = new Map<string, { value: number; items: Map<string, InvItem> }>()
     for (const e of entries) {
       if (e.type !== 'inventory' || e.currency !== currency) continue
-      const cat = cats.get(e.category) ?? { value: 0, items: new Map<string, InvItem>() }
+      const cid = normalizeCategoryId(e.category)
+      const cat = cats.get(cid) ?? { value: 0, items: new Map<string, InvItem>() }
       const key = e.subcategory || e.product || 'Item'
       const item = cat.items.get(key) ?? { name: key, qty: 0, value: 0, unit: null }
       item.qty += e.quantity ?? 0
@@ -54,7 +56,7 @@ export function StatsPage() {
       if (!item.unit && e.unit) item.unit = e.unit
       cat.items.set(key, item)
       cat.value += e.total ?? 0
-      cats.set(e.category, cat)
+      cats.set(cid, cat)
     }
     return [...cats.entries()].map(([id, d]) => ({ id, value: d.value, items: [...d.items.values()] }))
   }, [entries, currency])
@@ -95,7 +97,7 @@ export function StatsPage() {
           <p className="flex items-center gap-1 text-xs text-ink-500">
             <TrendingDown size={12} /> Spent
           </p>
-          <p className="mt-1 text-xl font-bold text-gold-300">{formatCurrency(finance.expense, currency)}</p>
+          <p className="mt-1 text-xl font-bold text-danger">{formatCurrency(finance.expense, currency)}</p>
         </Card>
       </div>
 
@@ -112,7 +114,7 @@ export function StatsPage() {
                 <Link key={id} to={`/category/${id}`}>
                   <Card
                     className="flex items-center justify-between px-3 py-2.5"
-                    style={{ boxShadow: `inset 3px 0 0 ${cat.color}` }}
+                    style={{ boxShadow: `inset 3px 0 0 ${cat.color}`, background: `${cat.color}1a` }}
                   >
                     <span className="flex items-center gap-1 text-sm text-ink-300">
                       {cat.emoji} {cat.label}
@@ -125,7 +127,7 @@ export function StatsPage() {
                         </p>
                         <p className="text-[10px] text-ink-600">
                           <span className="text-success">{formatCurrency(earned, currency)}</span> ·{' '}
-                          <span className="text-gold-300">{formatCurrency(spent, currency)}</span>
+                          <span className="text-danger">{formatCurrency(spent, currency)}</span>
                         </p>
                       </div>
                       <ChevronRight size={16} className="text-ink-600" />

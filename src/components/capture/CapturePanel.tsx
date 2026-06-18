@@ -107,7 +107,7 @@ export function CapturePanel() {
               'rounded-xl border py-2 text-xs font-medium transition-colors',
               mode === m
                 ? 'border-gold-500 bg-gold-500/10 text-gold-300'
-                : 'border-ink-700 bg-ink-800/60 text-ink-400',
+                : 'border-white/10 bg-white/[0.05] text-ink-400',
             )}
           >
             {m === 'income' ? '💰 Income' : m === 'expense' ? '💸 Expense' : '📦 Inventory'}
@@ -124,7 +124,7 @@ export function CapturePanel() {
             'flex flex-col items-center justify-center gap-2 rounded-2xl border py-6 transition-colors disabled:opacity-50',
             recorder.isRecording
               ? 'animate-pulse border-danger bg-danger/15 text-danger'
-              : 'border-ink-700 bg-ink-800/60 text-ink-300 hover:border-gold-500',
+              : 'border-white/10 bg-white/[0.05] text-ink-300 hover:border-gold-500',
           )}
         >
           {recorder.isRecording ? <Square size={26} /> : <Mic size={26} />}
@@ -134,7 +134,7 @@ export function CapturePanel() {
         <button
           onClick={() => fileRef.current?.click()}
           disabled={busy || recorder.isRecording}
-          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-ink-700 bg-ink-800/60 py-6 text-ink-300 transition-colors hover:border-gold-500 disabled:opacity-50"
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] py-6 text-ink-300 transition-colors hover:border-gold-500 disabled:opacity-50"
         >
           <Camera size={26} />
           <span className="text-xs font-medium">Snap receipt</span>
@@ -161,7 +161,7 @@ export function CapturePanel() {
           onKeyDown={(e) => e.key === 'Enter' && handleText()}
           placeholder='Type it — e.g. "spent 40 on gas"'
           disabled={busy || recorder.isRecording}
-          className="flex-1 rounded-xl border border-ink-700 bg-ink-800 px-3 py-3 text-sm text-ink-300 placeholder:text-ink-600 outline-none focus:border-gold-500 disabled:opacity-50"
+          className="flex-1 rounded-xl border border-white/[0.12] bg-white/[0.06] px-3 py-3 text-sm text-ink-300 placeholder:text-ink-600 outline-none backdrop-blur-sm focus:border-gold-500 disabled:opacity-50"
         />
         <button
           onClick={handleText}

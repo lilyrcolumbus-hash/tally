@@ -184,7 +184,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
 }
 
 const inputClass =
-  'w-full rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-ink-300 placeholder:text-ink-600 outline-none focus:border-gold-500'
+  'w-full rounded-xl border border-white/[0.12] bg-white/[0.06] px-3 py-2.5 text-sm text-ink-300 placeholder:text-ink-600 outline-none backdrop-blur-sm focus:border-gold-500'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

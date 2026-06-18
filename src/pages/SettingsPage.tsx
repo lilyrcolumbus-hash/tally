@@ -1,9 +1,13 @@
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { useEntries } from '@/contexts/EntriesContext'
+import { normalizeCategoryId } from '@/config/categories'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { isGeminiConfigured } from '@/lib/gemini'
 import { isSheetsConfigured } from '@/lib/sheets'
-import { HardDrive, Sparkles, Sheet as SheetIcon, Check, X } from 'lucide-react'
+import { HardDrive, Sparkles, Sheet as SheetIcon, Check, X, Trash2 } from 'lucide-react'
 
 const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'GBP', 'BRL']
 
@@ -21,11 +25,31 @@ function StatusRow({ ok, label, on, off }: { ok: boolean; label: React.ReactNode
 
 export function SettingsPage() {
   const [settings, setSettings] = useState(loadSettings())
+  const { entries, remove } = useEntries()
+  const [clearing, setClearing] = useState(false)
+
+  const otherEntries = entries.filter((e) => normalizeCategoryId(e.category) === 'other')
 
   const updateSettings = (patch: Partial<typeof settings>) => {
     const next = { ...settings, ...patch }
     setSettings(next)
     saveSettings(next)
+  }
+
+  const handleClearOther = async () => {
+    if (otherEntries.length === 0) {
+      toast('Nothing to clear')
+      return
+    }
+    setClearing(true)
+    try {
+      for (const e of otherEntries) await remove(e)
+      toast.success(`Cleared ${otherEntries.length} test ${otherEntries.length === 1 ? 'entry' : 'entries'}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not clear')
+    } finally {
+      setClearing(false)
+    }
   }
 
   return (
@@ -79,6 +103,16 @@ export function SettingsPage() {
             ? 'Everything you add is saved on this device and copied to your Google Sheet automatically.'
             : 'Everything you add is saved on this device.'}
         </p>
+      </Card>
+
+      {/* Maintenance */}
+      <Card className="px-4 py-4">
+        <h2 className="mb-1 text-sm font-bold text-ink-300">Maintenance</h2>
+        <p className="mb-3 text-xs text-ink-500">Remove old test entries that landed in “Other”.</p>
+        <Button variant="danger" onClick={handleClearOther} disabled={clearing || otherEntries.length === 0}>
+          <Trash2 size={15} />
+          {clearing ? 'Clearing…' : `Clear “Other” (${otherEntries.length})`}
+        </Button>
       </Card>
 
       <p className="px-2 text-center text-[11px] text-ink-700">卌 Tally — your inventory &amp; money, tallied.</p>

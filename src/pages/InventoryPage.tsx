@@ -1,53 +1,95 @@
-import { useMemo } from 'react'
-import { EntryList } from '@/components/EntryList'
+import { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
+import type { Entry } from '@/types'
 import { useEntries } from '@/contexts/EntriesContext'
-import { formatCurrency, dominantCurrency } from '@/lib/utils'
-import { Card } from '@/components/ui/Card'
-import { AlertTriangle } from 'lucide-react'
+import { MAIN_CATEGORIES, categoryById, normalizeCategoryId } from '@/config/categories'
+import { EntryCard } from '@/components/EntryCard'
+import { EditEntrySheet } from '@/components/EditEntrySheet'
+import { cn } from '@/lib/utils'
 
 export function InventoryPage() {
-  const { entries } = useEntries()
+  const { entries, update, remove } = useEntries()
+  const [filter, setFilter] = useState('all')
+  const [editing, setEditing] = useState<Entry | null>(null)
 
-  const items = useMemo(() => entries.filter((e) => e.type === 'inventory'), [entries])
+  const withProduct = useMemo(() => entries.filter((e) => e.product && e.product.trim()), [entries])
 
-  const lowStock = items.filter(
-    (e) => e.quantity !== null && e.lowStockThreshold !== null && e.quantity <= e.lowStockThreshold,
-  )
-  const totalUnits = items.reduce((sum, e) => sum + (e.quantity ?? 0), 0)
-  const currency = dominantCurrency(items)
-  const totalValue = items
-    .filter((e) => e.currency === currency)
-    .reduce((sum, e) => sum + (e.total ?? 0), 0)
+  const groups = useMemo(() => {
+    const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
+    const map = new Map<string, Entry[]>()
+    for (const e of withProduct) {
+      const cid = normalizeCategoryId(e.category)
+      if (filter !== 'all' && cid !== filter) continue
+      const arr = map.get(cid) ?? []
+      arr.push(e)
+      map.set(cid, arr)
+    }
+    return order.filter((id) => map.has(id)).map((id) => ({ id, items: map.get(id) as Entry[] }))
+  }, [withProduct, filter])
 
-  // Low-stock items float to the top.
-  const sorted = [...items].sort((a, b) => {
-    const aLow = lowStock.includes(a) ? 0 : 1
-    const bLow = lowStock.includes(b) ? 0 : 1
-    return aLow - bLow
-  })
+  const handleDelete = async (entry: Entry) => {
+    try {
+      await remove(entry)
+      toast.success('Deleted')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete')
+    }
+  }
+
+  const handleSave = async (entry: Entry) => {
+    try {
+      await update(entry)
+      toast.success('Updated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update')
+    }
+  }
+
+  const pills = [{ id: 'all', label: 'All', color: '#F9AB00', emoji: '' }, ...MAIN_CATEGORIES]
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="px-3 py-3">
-          <p className="text-xs text-ink-500">Items</p>
-          <p className="text-xl font-bold text-ink-300">{items.length}</p>
-          <p className="text-[11px] text-ink-600">{totalUnits} units total</p>
-        </Card>
-        <Card className="px-3 py-3">
-          <p className="text-xs text-ink-500">Stock value</p>
-          <p className="text-xl font-bold text-gold-300">{formatCurrency(totalValue, currency)}</p>
-        </Card>
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+        {pills.map((p) => {
+          const active = filter === p.id
+          return (
+            <button
+              key={p.id}
+              onClick={() => setFilter(p.id)}
+              className={cn(
+                'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                active ? 'text-ink-950' : 'border-white/10 bg-white/5 text-ink-400',
+              )}
+              style={active ? { background: p.color, borderColor: p.color, boxShadow: `0 0 16px ${p.color}55` } : undefined}
+            >
+              {'emoji' in p && p.emoji ? `${p.emoji} ` : ''}
+              {p.label}
+            </button>
+          )
+        })}
       </div>
 
-      {lowStock.length > 0 && (
-        <div className="flex items-center gap-2 rounded-xl bg-danger/10 px-3 py-2 text-xs font-medium text-danger">
-          <AlertTriangle size={14} />
-          {lowStock.length} item{lowStock.length > 1 ? 's' : ''} running low
-        </div>
+      {groups.length === 0 ? (
+        <p className="py-10 text-center text-sm text-ink-600">No products yet. Add items with a name on Home.</p>
+      ) : (
+        groups.map((g) => {
+          const cat = categoryById(g.id)
+          return (
+            <section key={g.id}>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
+                {cat.emoji} {cat.label}
+              </h2>
+              <div className="space-y-2">
+                {g.items.map((e) => (
+                  <EntryCard key={e.id} entry={e} onEdit={setEditing} onDelete={handleDelete} />
+                ))}
+              </div>
+            </section>
+          )
+        })
       )}
 
-      <EntryList entries={sorted} emptyText="No inventory yet. Add items in '📦 Inventory' mode on Home." />
+      <EditEntrySheet entry={editing} onSave={handleSave} onClose={() => setEditing(null)} />
     </div>
   )
 }

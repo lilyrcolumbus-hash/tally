@@ -3,8 +3,9 @@ import { CapturePanel } from '@/components/capture/CapturePanel'
 import { EntryList } from '@/components/EntryList'
 import { Card } from '@/components/ui/Card'
 import { useEntries } from '@/contexts/EntriesContext'
-import { dominantCurrency, monthlyFinance, currentMonthKey, formatCurrency } from '@/lib/utils'
-import { Loader2, AlertTriangle } from 'lucide-react'
+import { MAIN_CATEGORIES, normalizeCategoryId } from '@/config/categories'
+import { dominantCurrency, financeForPeriod, formatCurrency } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 
 export function HomePage() {
   const { entries, loading, error } = useEntries()
@@ -14,42 +15,43 @@ export function HomePage() {
     () => dominantCurrency(entries.filter((e) => e.type === 'income' || e.type === 'expense')),
     [entries],
   )
-  const finance = useMemo(() => monthlyFinance(entries, currency, currentMonthKey()), [entries, currency])
-  const lowStockCount = entries.filter(
-    (e) =>
-      e.type === 'inventory' &&
-      e.quantity !== null &&
-      e.lowStockThreshold !== null &&
-      e.quantity <= e.lowStockThreshold,
-  ).length
+
+  const perCategory = useMemo(
+    () =>
+      MAIN_CATEGORIES.map((c) => {
+        const mine = entries.filter((e) => normalizeCategoryId(e.category) === c.id)
+        return { cat: c, ...financeForPeriod(mine, currency, 'month') }
+      }),
+    [entries, currency],
+  )
+
+  const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long' })
 
   return (
     <div className="space-y-5">
-      {/* Essentials this month */}
-      <Card className="px-3 py-3">
-        <div className="grid grid-cols-3 divide-x divide-ink-800 text-center">
-          <div>
-            <p className="text-[11px] text-ink-500">Earned</p>
-            <p className="text-sm font-bold text-success">{formatCurrency(finance.income, currency)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-ink-500">Spent</p>
-            <p className="text-sm font-bold text-gold-300">{formatCurrency(finance.expense, currency)}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-ink-500">Net</p>
-            <p className={`text-sm font-bold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}>
-              {finance.net >= 0 ? '+' : '−'}
-              {formatCurrency(Math.abs(finance.net), currency)}
-            </p>
-          </div>
+      {/* This month, by project */}
+      <section>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">
+          {monthLabel} · net by project
+        </h2>
+        <div className="grid grid-cols-2 gap-2">
+          {perCategory.map(({ cat, income, expense, net }) => (
+            <Card key={cat.id} className="px-3 py-2.5" style={{ background: `${cat.color}1a`, boxShadow: `inset 3px 0 0 ${cat.color}` }}>
+              <p className="text-xs font-medium text-ink-300">
+                {cat.emoji} {cat.label}
+              </p>
+              <p className={`text-base font-bold ${net >= 0 ? 'text-success' : 'text-danger'}`}>
+                {net >= 0 ? '+' : '−'}
+                {formatCurrency(Math.abs(net), currency)}
+              </p>
+              <p className="text-[10px] text-ink-600">
+                <span className="text-success">{formatCurrency(income, currency)}</span> ·{' '}
+                <span className="text-danger">{formatCurrency(expense, currency)}</span>
+              </p>
+            </Card>
+          ))}
         </div>
-        {lowStockCount > 0 && (
-          <p className="mt-2 flex items-center justify-center gap-1 text-[11px] font-medium text-danger">
-            <AlertTriangle size={11} /> {lowStockCount} item{lowStockCount > 1 ? 's' : ''} low on stock
-          </p>
-        )}
-      </Card>
+      </section>
 
       <CapturePanel />
 

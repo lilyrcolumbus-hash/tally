@@ -18,7 +18,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'mushrooms',
     label: 'Mushrooms',
     emoji: '🍄',
-    color: '#34d399',
+    color: '#34A853',
     keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'oyster', 'shiitake', 'reishi', 'lions mane', 'champiñon'],
     subcategories: ['Oyster', 'Pink Oyster', 'Shiitake', "Lion's Mane", 'Reishi'],
   },
@@ -26,7 +26,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'home',
     label: 'Home',
     emoji: '🏠',
-    color: '#38bdf8',
+    color: '#4285F4',
     keywords: ['home', 'casa', 'garden', 'jardin', 'jardín', 'cleaning', 'aseo', 'limpieza', 'utilities', 'servicios', 'food', 'comida', 'grocery', 'personal care', 'rent', 'renta'],
     subcategories: ['Garden', 'Personal Care', 'Utilities', 'Food', 'Misc'],
   },
@@ -34,7 +34,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'digital',
     label: 'Digital Projects',
     emoji: '💻',
-    color: '#a78bfa',
+    color: '#9C27B0',
     keywords: ['project', 'proyecto', 'app', 'software', 'domain', 'dominio', 'hosting', 'subscription', 'tally', 'ada', 'smartgrowth', 'dev', 'development'],
     subcategories: ['Tally', 'Ada', 'SmartGrowth'],
   },
@@ -42,7 +42,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'lyhoff',
     label: 'LYHOFF',
     emoji: '👜',
-    color: '#fbbf24',
+    color: '#F9AB00',
     keywords: ['lyhoff', 'brand', 'marca'],
     subcategories: [],
   },
@@ -50,7 +50,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'other',
     label: 'Other',
     emoji: '🔵',
-    color: '#94a3b8',
+    color: '#9aa0a6',
     keywords: [],
     subcategories: [],
   },
@@ -65,3 +65,11 @@ export function categoryById(id: string): CategoryDef {
 export function subcategoriesFor(categoryId: string): string[] {
   return CATEGORIES.find((c) => c.id === categoryId)?.subcategories ?? []
 }
+
+/** Collapse unknown / legacy category ids (food, supplies…) into 'other'. */
+export function normalizeCategoryId(id: string): string {
+  return CATEGORIES.some((c) => c.id === id) ? id : 'other'
+}
+
+/** The 4 main project categories (excludes 'other'), for dashboards/grids. */
+export const MAIN_CATEGORIES = CATEGORIES.filter((c) => c.id !== 'other')

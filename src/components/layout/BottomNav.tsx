@@ -11,7 +11,7 @@ const tabs = [
 
 export function BottomNav() {
   return (
-    <nav className="sticky bottom-0 z-20 border-t border-ink-800 bg-ink-950/90 backdrop-blur-md">
+    <nav className="sticky bottom-0 z-20 border-t border-white/[0.08] bg-[#0a0a14]/80 backdrop-blur-lg">
       <div className="mx-auto flex max-w-md items-stretch justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(({ to, label, icon: Icon, end }) => (
           <NavLink
