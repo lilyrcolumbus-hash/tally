@@ -1,6 +1,6 @@
 // Core data model for Tally
 
-export type EntryType = 'inventory' | 'expense'
+export type EntryType = 'inventory' | 'expense' | 'income'
 export type EntrySource = 'voice' | 'photo' | 'text'
 
 /** One record: either a stock item (inventory) or a money outflow (expense). */

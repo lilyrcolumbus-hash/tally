@@ -1,6 +1,6 @@
 import type { EntryDraft, EntryType } from '@/types'
 import { CATEGORIES } from '@/config/categories'
-import { Package, Wallet } from 'lucide-react'
+import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface EntryFormProps {
@@ -28,9 +28,9 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
   return (
     <div className="space-y-3">
       {/* Type toggle */}
-      <div className="grid grid-cols-2 gap-2">
-        {(['inventory', 'expense'] as const).map((t) => {
-          const Icon = t === 'inventory' ? Package : Wallet
+      <div className="grid grid-cols-3 gap-2">
+        {(['income', 'expense', 'inventory'] as const).map((t) => {
+          const Icon = t === 'inventory' ? Package : t === 'income' ? Coins : Wallet
           const active = draft.type === t
           return (
             <button
@@ -38,14 +38,14 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
               type="button"
               onClick={() => setType(t)}
               className={cn(
-                'flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium capitalize transition-colors',
+                'flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium capitalize transition-colors',
                 active
                   ? 'border-gold-500 bg-gold-500/10 text-gold-300'
                   : 'border-ink-700 bg-ink-800 text-ink-400',
               )}
             >
-              <Icon size={16} />
-              {t === 'inventory' ? 'Inventory' : 'Expense'}
+              <Icon size={15} />
+              {t}
             </button>
           )
         })}

@@ -52,7 +52,10 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
       </div>
 
       <div className="shrink-0 text-right">
-        <p className="text-sm font-bold text-gold-300">{formatCurrency(entry.total, entry.currency)}</p>
+        <p className={`text-sm font-bold ${entry.type === 'income' ? 'text-success' : 'text-gold-300'}`}>
+          {entry.type === 'income' ? '+ ' : ''}
+          {formatCurrency(entry.total, entry.currency)}
+        </p>
         {confirming ? (
           <div className="mt-1 flex items-center justify-end gap-2">
             <button

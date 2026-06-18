@@ -98,19 +98,19 @@ export function CapturePanel() {
   return (
     <div>
       {/* Mode toggle */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        {(['expense', 'inventory'] as const).map((m) => (
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {(['income', 'expense', 'inventory'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
             className={cn(
-              'rounded-xl border py-2 text-sm font-medium capitalize transition-colors',
+              'rounded-xl border py-2 text-xs font-medium transition-colors',
               mode === m
                 ? 'border-gold-500 bg-gold-500/10 text-gold-300'
                 : 'border-ink-700 bg-ink-800/60 text-ink-400',
             )}
           >
-            {m === 'expense' ? '💸 Expense' : '📦 Inventory'}
+            {m === 'income' ? '💰 Income' : m === 'expense' ? '💸 Expense' : '📦 Inventory'}
           </button>
         ))}
       </div>

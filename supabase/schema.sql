@@ -6,7 +6,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.entries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  type text not null check (type in ('inventory', 'expense')),
+  type text not null check (type in ('inventory', 'expense', 'income')),
   product text,
   category text not null default 'other',
   quantity numeric,

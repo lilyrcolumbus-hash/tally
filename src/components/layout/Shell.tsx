@@ -5,7 +5,7 @@ import { BottomNav } from '@/components/layout/BottomNav'
 const titles: Record<string, string> = {
   '/': 'Tally',
   '/inventory': 'Inventory',
-  '/expenses': 'Expenses',
+  '/expenses': 'Money',
   '/stats': 'Stats',
   '/settings': 'Settings',
 }

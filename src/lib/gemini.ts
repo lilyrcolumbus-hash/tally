@@ -26,14 +26,14 @@ function buildPrompt(input: ExtractionInput): string {
 Return ONLY JSON: an array of records. One record per distinct item. A receipt photo can yield many records.
 
 Each record:
-- "type": "inventory" (a physical thing they HAVE, with a quantity) or "expense" (money that went out). If unsure, use "${input.defaultType}".
+- "type": "income" (money they RECEIVED — a sale or earning), "expense" (money that went OUT), or "inventory" (a physical thing they HAVE, with a quantity). If unsure, use "${input.defaultType}".
 - "product": the item name in the user's language, or null if they only stated an amount with no product.
 - "category": one of these ids: ${categoryList}. Pick the best fit, else "${DEFAULT_CATEGORY_ID}".
 - "quantity": number of units, or null.
 - "unit": the unit of measure they said (lb, pound, libra, kg, kilo, gram, liter, litro, ml, box, caja, bag, bottle, piece, dozen…), in the user's words, or null.
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
-- "note": any extra detail, or null.
+- "note": ONLY a genuinely extra remark, or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
 
 Currency is ${input.currency}; return plain numbers (no symbols).
 If they only say how much they spent without a product (e.g. "I spent 40"), return one expense with product null and total 40.

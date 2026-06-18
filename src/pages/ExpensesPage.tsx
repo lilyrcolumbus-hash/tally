@@ -1,33 +1,34 @@
 import { useMemo } from 'react'
 import { EntryList } from '@/components/EntryList'
 import { useEntries } from '@/contexts/EntriesContext'
-import { formatCurrency, currentMonthKey, monthKey, dominantCurrency, hasMixedCurrencies } from '@/lib/utils'
+import { formatCurrency, currentMonthKey, dominantCurrency, monthlyFinance, hasMixedCurrencies } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 
 export function ExpensesPage() {
   const { entries } = useEntries()
 
-  const expenses = useMemo(() => entries.filter((e) => e.type === 'expense'), [entries])
-  const currency = dominantCurrency(expenses)
-  const mixed = hasMixedCurrencies(expenses)
-  const inCurrency = expenses.filter((e) => e.currency === currency)
-
-  const thisMonth = currentMonthKey()
-  const monthTotal = inCurrency
-    .filter((e) => monthKey(e.createdAt) === thisMonth)
-    .reduce((sum, e) => sum + (e.total ?? 0), 0)
-  const allTotal = inCurrency.reduce((sum, e) => sum + (e.total ?? 0), 0)
+  const money = useMemo(() => entries.filter((e) => e.type === 'expense' || e.type === 'income'), [entries])
+  const currency = dominantCurrency(money)
+  const mixed = hasMixedCurrencies(money)
+  const finance = useMemo(() => monthlyFinance(entries, currency, currentMonthKey()), [entries, currency])
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="px-3 py-3">
-          <p className="text-xs text-ink-500">Spent this month</p>
-          <p className="text-xl font-bold text-gold-300">{formatCurrency(monthTotal, currency)}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="px-3 py-3 text-center">
+          <p className="text-[11px] text-ink-500">Earned</p>
+          <p className="text-base font-bold text-success">{formatCurrency(finance.income, currency)}</p>
         </Card>
-        <Card className="px-3 py-3">
-          <p className="text-xs text-ink-500">All time</p>
-          <p className="text-xl font-bold text-ink-300">{formatCurrency(allTotal, currency)}</p>
+        <Card className="px-3 py-3 text-center">
+          <p className="text-[11px] text-ink-500">Spent</p>
+          <p className="text-base font-bold text-gold-300">{formatCurrency(finance.expense, currency)}</p>
+        </Card>
+        <Card className="px-3 py-3 text-center">
+          <p className="text-[11px] text-ink-500">Net</p>
+          <p className={`text-base font-bold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}>
+            {finance.net >= 0 ? '+' : '−'}
+            {formatCurrency(Math.abs(finance.net), currency)}
+          </p>
         </Card>
       </div>
 
@@ -37,7 +38,7 @@ export function ExpensesPage() {
         </p>
       )}
 
-      <EntryList entries={expenses} emptyText="No expenses yet. Add one in '💸 Expense' mode on Home." />
+      <EntryList entries={money} emptyText="No income or expenses yet. Add one in 💰 Income or 💸 Expense mode on Home." />
     </div>
   )
 }

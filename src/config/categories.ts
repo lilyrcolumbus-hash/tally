@@ -14,6 +14,7 @@ export const CATEGORIES: CategoryDef[] = [
   { id: 'home', label: 'Home', emoji: '🏠', keywords: ['home', 'casa', 'cleaning', 'limpieza', 'soap', 'jabon', 'detergent', 'detergente', 'toilet', 'kitchen', 'cocina'] },
   { id: 'health', label: 'Health & Beauty', emoji: '💊', keywords: ['health', 'salud', 'medicine', 'medicina', 'pharmacy', 'farmacia', 'beauty', 'shampoo', 'cream', 'crema', 'vitamin'] },
   { id: 'products', label: 'Products for sale', emoji: '🏷️', keywords: ['product', 'producto', 'inventory', 'inventario', 'stock', 'sale', 'venta', 'merch'] },
+  { id: 'mushrooms', label: 'Mushrooms', emoji: '🍄', keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'champiñon', 'champiñones', 'oyster', 'reishi', 'lions mane', 'shiitake'] },
   { id: 'tools', label: 'Tools & Equipment', emoji: '🔧', keywords: ['tool', 'herramienta', 'equipment', 'equipo', 'machine', 'maquina', 'drill', 'hammer'] },
   { id: 'transport', label: 'Transport', emoji: '🚗', keywords: ['transport', 'gas', 'gasolina', 'fuel', 'combustible', 'uber', 'taxi', 'bus', 'parking', 'estacionamiento'] },
   { id: 'services', label: 'Services & Bills', emoji: '🧾', keywords: ['service', 'servicio', 'bill', 'factura', 'rent', 'renta', 'internet', 'phone', 'telefono', 'electricity', 'luz', 'water', 'agua', 'subscription'] },

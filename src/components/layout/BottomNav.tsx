@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 const tabs = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/inventory', label: 'Inventory', icon: Package, end: false },
-  { to: '/expenses', label: 'Expenses', icon: Wallet, end: false },
+  { to: '/expenses', label: 'Money', icon: Wallet, end: false },
   { to: '/stats', label: 'Stats', icon: BarChart3, end: false },
 ]
 

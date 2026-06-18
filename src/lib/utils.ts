@@ -39,6 +39,28 @@ export function hasMixedCurrencies(entries: ReadonlyArray<{ currency: string }>)
   return new Set(entries.map((e) => e.currency)).size > 1
 }
 
+export interface FinanceSummary {
+  income: number
+  expense: number
+  net: number
+}
+
+/** Income, expenses and net profit for one month, in a single currency. */
+export function monthlyFinance(
+  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null }>,
+  currency: string,
+  month: string,
+): FinanceSummary {
+  let income = 0
+  let expense = 0
+  for (const e of entries) {
+    if (e.currency !== currency || monthKey(e.createdAt) !== month) continue
+    if (e.type === 'income') income += e.total ?? 0
+    else if (e.type === 'expense') expense += e.total ?? 0
+  }
+  return { income, expense, net: income - expense }
+}
+
 export function formatDate(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''

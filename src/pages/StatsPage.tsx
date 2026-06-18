@@ -1,14 +1,19 @@
 import { useMemo } from 'react'
 import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById } from '@/config/categories'
-import { formatCurrency, currentMonthKey, monthKey, dominantCurrency } from '@/lib/utils'
+import { formatCurrency, currentMonthKey, monthKey, dominantCurrency, monthlyFinance } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
-import { AlertTriangle, TrendingUp } from 'lucide-react'
+import { AlertTriangle, TrendingUp, TrendingDown, Scale } from 'lucide-react'
 
 export function StatsPage() {
   const { entries } = useEntries()
   const thisMonth = currentMonthKey()
-  const currency = useMemo(() => dominantCurrency(entries.filter((e) => e.type === 'expense')), [entries])
+  const currency = useMemo(
+    () => dominantCurrency(entries.filter((e) => e.type === 'income' || e.type === 'expense')),
+    [entries],
+  )
+
+  const finance = useMemo(() => monthlyFinance(entries, currency, thisMonth), [entries, currency, thisMonth])
 
   const monthExpenses = useMemo(
     () =>
@@ -17,8 +22,6 @@ export function StatsPage() {
       ),
     [entries, thisMonth, currency],
   )
-
-  const monthTotal = monthExpenses.reduce((sum, e) => sum + (e.total ?? 0), 0)
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>()
@@ -42,16 +45,38 @@ export function StatsPage() {
 
   return (
     <div className="space-y-5">
+      {/* Net profit hero */}
       <Card className="px-4 py-5">
         <p className="flex items-center gap-1.5 text-xs text-ink-500">
-          <TrendingUp size={13} /> Spent in {monthLabel}
+          <Scale size={13} /> Net profit · {monthLabel}
         </p>
-        <p className="mt-1 text-3xl font-extrabold text-gold-300">{formatCurrency(monthTotal, currency)}</p>
-        <p className="mt-1 text-xs text-ink-600">{monthExpenses.length} expense entries</p>
+        <p
+          className={`mt-1 text-3xl font-extrabold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}
+        >
+          {finance.net >= 0 ? '+' : '−'}
+          {formatCurrency(Math.abs(finance.net), currency)}
+        </p>
+        <p className="mt-1 text-xs text-ink-600">Earnings minus expenses</p>
       </Card>
 
+      {/* Earned vs spent */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="px-3 py-3">
+          <p className="flex items-center gap-1 text-xs text-ink-500">
+            <TrendingUp size={12} /> Earned
+          </p>
+          <p className="mt-1 text-xl font-bold text-success">{formatCurrency(finance.income, currency)}</p>
+        </Card>
+        <Card className="px-3 py-3">
+          <p className="flex items-center gap-1 text-xs text-ink-500">
+            <TrendingDown size={12} /> Spent
+          </p>
+          <p className="mt-1 text-xl font-bold text-gold-300">{formatCurrency(finance.expense, currency)}</p>
+        </Card>
+      </div>
+
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">By category</h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Spending by category</h2>
         {byCategory.length === 0 ? (
           <p className="py-6 text-center text-sm text-ink-600">No expenses this month yet.</p>
         ) : (
@@ -98,7 +123,9 @@ export function StatsPage() {
                   <span className="text-ink-300">
                     {cat.emoji} {e.product ?? 'Item'}
                   </span>
-                  <span className="font-semibold text-danger">{e.quantity} left</span>
+                  <span className="font-semibold text-danger">
+                    {e.quantity} {e.unit || 'left'}
+                  </span>
                 </div>
               )
             })}
