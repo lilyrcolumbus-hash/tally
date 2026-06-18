@@ -3,7 +3,14 @@ import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById } from '@/config/categories'
 import { formatCurrency, currentMonthKey, monthKey, dominantCurrency, monthlyFinance } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
-import { AlertTriangle, TrendingUp, TrendingDown, Scale } from 'lucide-react'
+import { AlertTriangle, TrendingUp, TrendingDown, Scale, Package } from 'lucide-react'
+
+interface InvItem {
+  name: string
+  qty: number
+  value: number
+  unit: string | null
+}
 
 export function StatsPage() {
   const { entries } = useEntries()
@@ -15,23 +22,39 @@ export function StatsPage() {
 
   const finance = useMemo(() => monthlyFinance(entries, currency, thisMonth), [entries, currency, thisMonth])
 
-  const monthExpenses = useMemo(
-    () =>
-      entries.filter(
-        (e) => e.type === 'expense' && e.currency === currency && monthKey(e.createdAt) === thisMonth,
-      ),
-    [entries, thisMonth, currency],
-  )
-
+  // Money by category (this month) — each project's mini P&L
   const byCategory = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const e of monthExpenses) {
-      map.set(e.category, (map.get(e.category) ?? 0) + (e.total ?? 0))
+    const map = new Map<string, { earned: number; spent: number }>()
+    for (const e of entries) {
+      if (e.currency !== currency || monthKey(e.createdAt) !== thisMonth) continue
+      if (e.type !== 'income' && e.type !== 'expense') continue
+      const c = map.get(e.category) ?? { earned: 0, spent: 0 }
+      if (e.type === 'income') c.earned += e.total ?? 0
+      else c.spent += e.total ?? 0
+      map.set(e.category, c)
     }
-    return [...map.entries()].map(([id, amount]) => ({ id, amount })).sort((a, b) => b.amount - a.amount)
-  }, [monthExpenses])
+    return [...map.entries()]
+      .map(([id, v]) => ({ id, ...v, net: v.earned - v.spent }))
+      .sort((a, b) => b.earned + b.spent - (a.earned + a.spent))
+  }, [entries, currency, thisMonth])
 
-  const maxCat = byCategory[0]?.amount ?? 0
+  // Inventory grouped by category → subcategory/product
+  const inventoryGroups = useMemo(() => {
+    const cats = new Map<string, { value: number; items: Map<string, InvItem> }>()
+    for (const e of entries) {
+      if (e.type !== 'inventory' || e.currency !== currency) continue
+      const cat = cats.get(e.category) ?? { value: 0, items: new Map<string, InvItem>() }
+      const key = e.subcategory || e.product || 'Item'
+      const item = cat.items.get(key) ?? { name: key, qty: 0, value: 0, unit: null }
+      item.qty += e.quantity ?? 0
+      item.value += e.total ?? 0
+      if (!item.unit && e.unit) item.unit = e.unit
+      cat.items.set(key, item)
+      cat.value += e.total ?? 0
+      cats.set(e.category, cat)
+    }
+    return [...cats.entries()].map(([id, d]) => ({ id, value: d.value, items: [...d.items.values()] }))
+  }, [entries, currency])
 
   const lowStock = entries.filter(
     (e) =>
@@ -50,9 +73,7 @@ export function StatsPage() {
         <p className="flex items-center gap-1.5 text-xs text-ink-500">
           <Scale size={13} /> Net profit · {monthLabel}
         </p>
-        <p
-          className={`mt-1 text-3xl font-extrabold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}
-        >
+        <p className={`mt-1 text-3xl font-extrabold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}>
           {finance.net >= 0 ? '+' : '−'}
           {formatCurrency(Math.abs(finance.net), currency)}
         </p>
@@ -75,36 +96,72 @@ export function StatsPage() {
         </Card>
       </div>
 
+      {/* By project / category */}
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">Spending by category</h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">By project · {monthLabel}</h2>
         {byCategory.length === 0 ? (
-          <p className="py-6 text-center text-sm text-ink-600">No expenses this month yet.</p>
+          <p className="py-4 text-center text-sm text-ink-600">No money activity this month yet.</p>
         ) : (
-          <div className="space-y-2.5">
-            {byCategory.map(({ id, amount }) => {
+          <div className="space-y-2">
+            {byCategory.map(({ id, earned, spent, net }) => {
               const cat = categoryById(id)
-              const pct = maxCat > 0 ? Math.round((amount / maxCat) * 100) : 0
               return (
-                <div key={id}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-ink-400">
-                      {cat.emoji} {cat.label}
-                    </span>
-                    <span className="font-semibold text-ink-300">{formatCurrency(amount, currency)}</span>
+                <Card key={id} className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-sm text-ink-300">
+                    {cat.emoji} {cat.label}
+                  </span>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${net >= 0 ? 'text-success' : 'text-danger'}`}>
+                      {net >= 0 ? '+' : '−'}
+                      {formatCurrency(Math.abs(net), currency)}
+                    </p>
+                    <p className="text-[10px] text-ink-600">
+                      <span className="text-success">{formatCurrency(earned, currency)}</span> ·{' '}
+                      <span className="text-gold-300">{formatCurrency(spent, currency)}</span>
+                    </p>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-ink-800">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-gold-500 to-cyan-400"
-                      style={{ width: `${Math.max(pct, 4)}%` }}
-                    />
-                  </div>
-                </div>
+                </Card>
               )
             })}
           </div>
         )}
       </section>
 
+      {/* Inventory by product */}
+      {inventoryGroups.length > 0 && (
+        <section>
+          <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-500">
+            <Package size={13} /> Inventory by product
+          </h2>
+          <div className="space-y-3">
+            {inventoryGroups.map((group) => {
+              const cat = categoryById(group.id)
+              return (
+                <Card key={group.id} className="px-3 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-ink-300">
+                      {cat.emoji} {cat.label}
+                    </span>
+                    <span className="text-sm font-bold text-gold-300">{formatCurrency(group.value, currency)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {group.items.map((item) => (
+                      <div key={item.name} className="flex items-center justify-between text-xs">
+                        <span className="text-ink-400">{item.name}</span>
+                        <span className="text-ink-500">
+                          {item.qty} {item.unit || 'u.'} · {formatCurrency(item.value, currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Low stock */}
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-500">
           <AlertTriangle size={13} /> Low stock
@@ -121,7 +178,7 @@ export function StatsPage() {
                   className="flex items-center justify-between rounded-xl border border-danger/30 bg-danger/5 px-3 py-2 text-sm"
                 >
                   <span className="text-ink-300">
-                    {cat.emoji} {e.product ?? 'Item'}
+                    {cat.emoji} {e.subcategory || e.product || 'Item'}
                   </span>
                   <span className="font-semibold text-danger">
                     {e.quantity} {e.unit || 'left'}

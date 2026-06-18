@@ -7,9 +7,11 @@ export type EntrySource = 'voice' | 'photo' | 'text'
 export interface Entry {
   id: string
   type: EntryType
-  /** Product/item name. Null is allowed for an expense with no named product. */
+  /** Product/item name (in English). Null is allowed for an expense with no named product. */
   product: string | null
   category: string
+  /** Subcategory / product line within the category (Shiitake, Garden, Tally…). */
+  subcategory: string | null
   /** Units held (inventory). Null for pure expenses. */
   quantity: number | null
   /** Unit of measure (lb, kg, liter, box, piece…) in the user's words. */
@@ -31,6 +33,7 @@ export interface EntryDraft {
   type: EntryType
   product: string | null
   category: string
+  subcategory: string | null
   quantity: number | null
   unit: string | null
   unitPrice: number | null

@@ -42,6 +42,7 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
         <p className="flex items-center gap-1.5 text-xs text-ink-400">
           <SourceIcon size={11} />
           {cat.label}
+          {entry.subcategory && <span className="text-cyan-300">› {entry.subcategory}</span>}
           {entry.quantity !== null && (
             <span>
               · {entry.quantity} {entry.unit || 'u.'}

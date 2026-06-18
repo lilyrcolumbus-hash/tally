@@ -47,6 +47,7 @@ export function ConfirmSheet({
       type: d.type,
       product: d.product,
       category: d.category,
+      subcategory: d.subcategory,
       quantity: d.quantity,
       unit: d.unit,
       unitPrice: d.unitPrice,
@@ -70,9 +71,18 @@ export function ConfirmSheet({
       title={drafts.length > 1 ? `Confirm ${drafts.length} items` : 'Confirm'}
       onClose={onClose}
       footer={
-        <Button className="w-full" size="lg" onClick={handleSave} disabled={saving || drafts.length === 0}>
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={handleSave}
+          disabled={saving || drafts.length === 0 || drafts.some((d) => !d.category)}
+        >
           <Check size={18} />
-          {saving ? 'Saving…' : `Save ${drafts.length > 1 ? `${drafts.length} items` : ''}`.trim()}
+          {saving
+            ? 'Saving…'
+            : drafts.some((d) => !d.category)
+              ? 'Pick a category first'
+              : `Save ${drafts.length > 1 ? `${drafts.length} items` : ''}`.trim()}
         </Button>
       }
     >

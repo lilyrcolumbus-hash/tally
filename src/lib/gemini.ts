@@ -27,21 +27,24 @@ Return ONLY JSON: an array of records. One record per distinct item. A receipt p
 
 Each record:
 - "type": "income" (money they RECEIVED — a sale or earning), "expense" (money that went OUT), or "inventory" (a physical thing they HAVE, with a quantity). If unsure, use "${input.defaultType}".
-- "product": the item name in the user's language, or null if they only stated an amount with no product.
-- "category": one of these ids: ${categoryList}. Pick the best fit, else "${DEFAULT_CATEGORY_ID}".
+- "product": the item name IN ENGLISH — translate it if the user spoke Spanish (café→Coffee, azúcar→Sugar). Null if they only stated an amount with no product.
+- "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
+- "subcategory": the product line / project within the category, IN ENGLISH (e.g. Shiitake or Oyster for Mushrooms; Garden or Utilities for Home; Tally or Ada for Digital Projects), or null.
 - "quantity": number of units, or null.
 - "unit": the unit of measure they said (lb, pound, libra, kg, kilo, gram, liter, litro, ml, box, caja, bag, bottle, piece, dozen…), in the user's words, or null.
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
-- "note": ONLY a genuinely extra remark, or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
+- "note": ONLY a genuinely extra remark (in English), or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
 
-Currency is ${input.currency}; return plain numbers (no symbols).
-If they only say how much they spent without a product (e.g. "I spent 40"), return one expense with product null and total 40.
+Currency is ${input.currency}; return plain numbers (no symbols). All text fields (product, subcategory, note) must be in ENGLISH.
+If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
-Example input: "Compré 3 paquetes de café a 5 dólares cada uno"
-Example output: [{"type":"inventory","product":"café","category":"food","quantity":3,"unit":"paquetes","unitPrice":5,"total":15,"note":null}]
-Example input: "una libra de azúcar"
-Example output: [{"type":"inventory","product":"azúcar","category":"food","quantity":1,"unit":"libra","unitPrice":null,"total":null,"note":null}]
+Example input: "vendí 3 libras de hongos shiitake a 5 cada una"
+Example output: [{"type":"income","product":"Shiitake mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null}]
+Example input: "una libra de azúcar para la casa"
+Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null}]
+Example input: "vendí 50"
+Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null}]
 
 ${input.text ? `User text: "${input.text}"` : 'Extract from the attached audio/photo.'}`
 }
@@ -50,6 +53,7 @@ interface RawDraft {
   type?: string
   product?: string | null
   category?: string
+  subcategory?: string | null
   quantity?: number | null
   unit?: string | null
   unitPrice?: number | null
@@ -58,16 +62,19 @@ interface RawDraft {
 }
 
 function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
-  const type: EntryType = raw.type === 'inventory' || raw.type === 'expense' ? raw.type : fallbackType
-  const category = CATEGORIES.some((c) => c.id === raw.category) ? (raw.category as string) : DEFAULT_CATEGORY_ID
+  const validTypes: EntryType[] = ['inventory', 'expense', 'income']
+  const type: EntryType = validTypes.includes(raw.type as EntryType) ? (raw.type as EntryType) : fallbackType
+  // Empty string when the AI is unsure — the confirm screen then asks the user.
+  const category = CATEGORIES.some((c) => c.id === raw.category) ? (raw.category as string) : ''
   const quantity = typeof raw.quantity === 'number' ? raw.quantity : null
   const unitPrice = typeof raw.unitPrice === 'number' ? raw.unitPrice : null
   let total = typeof raw.total === 'number' ? raw.total : null
   if (total === null && quantity !== null && unitPrice !== null) total = quantity * unitPrice
   const product = typeof raw.product === 'string' && raw.product.trim() ? raw.product.trim() : null
+  const subcategory = typeof raw.subcategory === 'string' && raw.subcategory.trim() ? raw.subcategory.trim() : null
   const unit = typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit.trim() : null
   const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null
-  return { type, product, category, quantity, unit, unitPrice, total, note }
+  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }
@@ -205,6 +212,7 @@ export function fallbackParse(input: ExtractionInput): EntryDraft {
     type,
     product: product ? product.charAt(0).toUpperCase() + product.slice(1) : null,
     category: guessCategory(lower),
+    subcategory: null,
     quantity,
     unit: unitMatch ? unitMatch[1] : null,
     unitPrice,

@@ -1,5 +1,5 @@
 import type { EntryDraft, EntryType } from '@/types'
-import { CATEGORIES } from '@/config/categories'
+import { CATEGORIES, subcategoriesFor } from '@/config/categories'
 import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -61,20 +61,66 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         />
       </Field>
 
-      {/* Category */}
-      <Field label="Category">
-        <select
-          value={draft.category}
-          onChange={(e) => onChange({ ...draft, category: e.target.value })}
-          className={inputClass}
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.emoji} {c.label}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {/* Category — tap to pick (pulses when the AI was unsure) */}
+      <div>
+        <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink-400">
+          Category
+          {!draft.category && <span className="font-semibold text-gold-400">· which one?</span>}
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map((c) => {
+            const active = draft.category === c.id
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onChange({ ...draft, category: c.id, subcategory: null })}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  active
+                    ? 'border-gold-500 bg-gold-500/15 text-gold-300'
+                    : !draft.category
+                      ? 'animate-pulse border-gold-500/40 bg-ink-800 text-ink-300'
+                      : 'border-ink-700 bg-ink-800 text-ink-400',
+                )}
+              >
+                {c.emoji} {c.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Subcategory — chips for the chosen category + free text */}
+      {draft.category && (
+        <Field label="Subcategory / product line (optional)">
+          {subcategoriesFor(draft.category).length > 0 && (
+            <div className="mb-1.5 flex flex-wrap gap-1.5">
+              {subcategoriesFor(draft.category).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => onChange({ ...draft, subcategory: draft.subcategory === s ? null : s })}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                    draft.subcategory === s
+                      ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
+                      : 'border-ink-700 bg-ink-800 text-ink-400',
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            value={draft.subcategory ?? ''}
+            onChange={(e) => onChange({ ...draft, subcategory: e.target.value || null })}
+            placeholder="e.g. Shiitake, Garden, Tally…"
+            className={inputClass}
+          />
+        </Field>
+      )}
 
       {/* Quantity + Unit of measure */}
       <div className="grid grid-cols-2 gap-2">

@@ -12,6 +12,7 @@ interface EntryRow {
   type: Entry['type']
   product: string | null
   category: string
+  subcategory: string | null
   quantity: number | null
   unit: string | null
   unit_price: number | null
@@ -30,6 +31,7 @@ function toRow(entry: Entry, userId?: string): EntryRow {
     type: entry.type,
     product: entry.product,
     category: entry.category,
+    subcategory: entry.subcategory,
     quantity: entry.quantity,
     unit: entry.unit,
     unit_price: entry.unitPrice,
@@ -48,6 +50,7 @@ function fromRow(row: EntryRow): Entry {
     type: row.type,
     product: row.product,
     category: row.category,
+    subcategory: row.subcategory,
     quantity: row.quantity,
     unit: row.unit,
     unitPrice: row.unit_price,

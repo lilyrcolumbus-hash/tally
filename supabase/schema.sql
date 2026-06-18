@@ -9,6 +9,7 @@ create table if not exists public.entries (
   type text not null check (type in ('inventory', 'expense', 'income')),
   product text,
   category text not null default 'other',
+  subcategory text,
   quantity numeric,
   unit text,
   unit_price numeric,
