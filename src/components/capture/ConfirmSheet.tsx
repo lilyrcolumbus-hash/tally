@@ -48,6 +48,7 @@ export function ConfirmSheet({
       product: d.product,
       category: d.category,
       quantity: d.quantity,
+      unit: d.unit,
       unitPrice: d.unitPrice,
       total: d.total,
       currency,

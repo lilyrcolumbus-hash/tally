@@ -10,6 +10,7 @@ create table if not exists public.entries (
   product text,
   category text not null default 'other',
   quantity numeric,
+  unit text,
   unit_price numeric,
   total numeric,
   currency text not null default 'USD',

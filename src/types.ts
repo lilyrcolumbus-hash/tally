@@ -12,6 +12,8 @@ export interface Entry {
   category: string
   /** Units held (inventory). Null for pure expenses. */
   quantity: number | null
+  /** Unit of measure (lb, kg, liter, box, piece…) in the user's words. */
+  unit: string | null
   /** Price per unit. Null when unknown. */
   unitPrice: number | null
   /** Total money: quantity * unitPrice, or a directly stated amount. */
@@ -30,6 +32,7 @@ export interface EntryDraft {
   product: string | null
   category: string
   quantity: number | null
+  unit: string | null
   unitPrice: number | null
   total: number | null
   note: string | null

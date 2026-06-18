@@ -42,7 +42,11 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
         <p className="flex items-center gap-1.5 text-xs text-ink-400">
           <SourceIcon size={11} />
           {cat.label}
-          {entry.quantity !== null && <span>· {entry.quantity} u.</span>}
+          {entry.quantity !== null && (
+            <span>
+              · {entry.quantity} {entry.unit || 'u.'}
+            </span>
+          )}
           <span>· {formatDate(entry.createdAt)}</span>
         </p>
       </div>

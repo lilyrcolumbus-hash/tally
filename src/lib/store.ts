@@ -13,6 +13,7 @@ interface EntryRow {
   product: string | null
   category: string
   quantity: number | null
+  unit: string | null
   unit_price: number | null
   total: number | null
   currency: string
@@ -30,6 +31,7 @@ function toRow(entry: Entry, userId?: string): EntryRow {
     product: entry.product,
     category: entry.category,
     quantity: entry.quantity,
+    unit: entry.unit,
     unit_price: entry.unitPrice,
     total: entry.total,
     currency: entry.currency,
@@ -47,6 +49,7 @@ function fromRow(row: EntryRow): Entry {
     product: row.product,
     category: row.category,
     quantity: row.quantity,
+    unit: row.unit,
     unitPrice: row.unit_price,
     total: row.total,
     currency: row.currency,

@@ -30,6 +30,7 @@ Each record:
 - "product": the item name in the user's language, or null if they only stated an amount with no product.
 - "category": one of these ids: ${categoryList}. Pick the best fit, else "${DEFAULT_CATEGORY_ID}".
 - "quantity": number of units, or null.
+- "unit": the unit of measure they said (lb, pound, libra, kg, kilo, gram, liter, litro, ml, box, caja, bag, bottle, piece, dozen…), in the user's words, or null.
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
 - "note": any extra detail, or null.
@@ -38,7 +39,9 @@ Currency is ${input.currency}; return plain numbers (no symbols).
 If they only say how much they spent without a product (e.g. "I spent 40"), return one expense with product null and total 40.
 
 Example input: "Compré 3 paquetes de café a 5 dólares cada uno"
-Example output: [{"type":"inventory","product":"café","category":"food","quantity":3,"unitPrice":5,"total":15,"note":null}]
+Example output: [{"type":"inventory","product":"café","category":"food","quantity":3,"unit":"paquetes","unitPrice":5,"total":15,"note":null}]
+Example input: "una libra de azúcar"
+Example output: [{"type":"inventory","product":"azúcar","category":"food","quantity":1,"unit":"libra","unitPrice":null,"total":null,"note":null}]
 
 ${input.text ? `User text: "${input.text}"` : 'Extract from the attached audio/photo.'}`
 }
@@ -48,6 +51,7 @@ interface RawDraft {
   product?: string | null
   category?: string
   quantity?: number | null
+  unit?: string | null
   unitPrice?: number | null
   total?: number | null
   note?: string | null
@@ -61,8 +65,9 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   let total = typeof raw.total === 'number' ? raw.total : null
   if (total === null && quantity !== null && unitPrice !== null) total = quantity * unitPrice
   const product = typeof raw.product === 'string' && raw.product.trim() ? raw.product.trim() : null
+  const unit = typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit.trim() : null
   const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null
-  return { type, product, category, quantity, unitPrice, total, note }
+  return { type, product, category, quantity, unit, unitPrice, total, note }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }
@@ -192,11 +197,16 @@ export function fallbackParse(input: ExtractionInput): EntryDraft {
       .replace(/\s+/g, ' ')
       .trim() || null
 
+  const unitMatch = lower.match(
+    /\b(lbs?|pounds?|libras?|kg|kilos?|kilogramos?|gr?|gramos?|grams?|oz|onzas?|ounces?|lt?|litros?|liters?|ml|cajas?|boxes?|paquetes?|packs?|bolsas?|bags?|botellas?|bottles?|piezas?|pieces?|docenas?|dozens?|unidades?|units?)\b/,
+  )
+
   return {
     type,
     product: product ? product.charAt(0).toUpperCase() + product.slice(1) : null,
     category: guessCategory(lower),
     quantity,
+    unit: unitMatch ? unitMatch[1] : null,
     unitPrice,
     total,
     note: null,

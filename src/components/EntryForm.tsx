@@ -76,7 +76,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         </select>
       </Field>
 
-      {/* Quantity + Unit price */}
+      {/* Quantity + Unit of measure */}
       <div className="grid grid-cols-2 gap-2">
         <Field label="Quantity">
           <input
@@ -87,16 +87,26 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
             className={inputClass}
           />
         </Field>
-        <Field label={`Unit price (${currency})`}>
+        <Field label="Unit">
           <input
-            inputMode="decimal"
-            value={draft.unitPrice ?? ''}
-            onChange={(e) => onChange(recompute({ ...draft, unitPrice: numOrNull(e.target.value) }))}
-            placeholder="—"
+            value={draft.unit ?? ''}
+            onChange={(e) => onChange({ ...draft, unit: e.target.value || null })}
+            placeholder="lb, kg, box…"
             className={inputClass}
           />
         </Field>
       </div>
+
+      {/* Unit price */}
+      <Field label={`Unit price (${currency})`}>
+        <input
+          inputMode="decimal"
+          value={draft.unitPrice ?? ''}
+          onChange={(e) => onChange(recompute({ ...draft, unitPrice: numOrNull(e.target.value) }))}
+          placeholder="—"
+          className={inputClass}
+        />
+      </Field>
 
       {/* Total */}
       <Field label={`Total (${currency})`}>

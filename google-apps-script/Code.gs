@@ -1,14 +1,14 @@
 /**
  * Tally — Google Sheets mirror (modern, one tab per category).
  *
- * Each entry is written to a tab named after its category (Food, Supplies, ...).
- * The id column is kept (needed to update/delete) but hidden. Columns are ordered
- * with the useful stuff first, the date is formatted, and rows are banded.
+ * Each entry goes to a tab named after its category (Food, Supplies, ...).
+ * Columns are ordered with the useful stuff first (product, quantity, unit,
+ * price, total). The id is kept (needed to update/delete) but hidden.
  *
  * The app POSTs { action: 'upsert' | 'delete', entry: {...}, token?: '...' }.
  */
 
-var HEADERS = ['id', 'date', 'product', 'type', 'quantity', 'unitPrice', 'total', 'currency', 'note', 'source']
+var HEADERS = ['id', 'product', 'quantity', 'unit', 'unitPrice', 'total', 'currency', 'type', 'date', 'note', 'source']
 
 var CATEGORY_LABELS = {
   food: 'Food',
@@ -65,11 +65,11 @@ function initSheet(sheet) {
   sheet.setFrozenRows(1)
   sheet.setRowHeight(1, 32)
   sheet.hideColumns(1) // hide the id column
-  sheet.getRange('B2:B').setNumberFormat('MMM d, yyyy  h:mm am/pm') // date
-  sheet.getRange('F2:G').setNumberFormat('#,##0.00') // unitPrice + total
-  sheet.setColumnWidth(2, 170) // date
-  sheet.setColumnWidth(3, 180) // product
-  sheet.setColumnWidth(9, 200) // note
+  sheet.getRange('E2:F').setNumberFormat('#,##0.00') // unitPrice + total
+  sheet.getRange('I2:I').setNumberFormat('MMM d, yyyy  h:mm am/pm') // date
+  sheet.setColumnWidth(2, 180) // product
+  sheet.setColumnWidth(9, 170) // date
+  sheet.setColumnWidth(10, 200) // note
   try {
     sheet
       .getRange(2, 1, sheet.getMaxRows() - 1, HEADERS.length)
@@ -82,13 +82,14 @@ function initSheet(sheet) {
 function entryToRow(entry) {
   return [
     entry.id,
-    entry.createdAt ? new Date(entry.createdAt) : '',
     entry.product || '',
-    entry.type || '',
     entry.quantity == null ? '' : entry.quantity,
+    entry.unit || '',
     entry.unitPrice == null ? '' : entry.unitPrice,
     entry.total == null ? '' : entry.total,
     entry.currency || '',
+    entry.type || '',
+    entry.createdAt ? new Date(entry.createdAt) : '',
     entry.note || '',
     entry.source || '',
   ]
