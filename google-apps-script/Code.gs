@@ -1,27 +1,26 @@
 /**
- * Tally — Google Sheets mirror.
+ * Tally — Google Sheets mirror (modern, one tab per category).
  *
- * Setup (one time):
- *  1. Create a blank Google Sheet.
- *  2. Extensions → Apps Script. Delete any code, paste THIS file.
- *  3. Deploy → New deployment → type "Web app".
- *       - Execute as: Me
- *       - Who has access: Anyone
- *  4. Copy the Web app URL and put it in the app's VITE_SHEETS_WEBHOOK_URL.
- *  5. (Recommended) Lock it down: Project Settings → Script Properties →
- *       add a property TALLY_TOKEN = some-long-random-string, and set the SAME
- *       value in the app's VITE_SHEETS_TOKEN. Requests without it are rejected,
- *       so the public URL can't be used to write/delete your rows.
+ * Each entry is written to a tab named after its category (Food, Supplies, ...).
+ * The id column is kept (needed to update/delete) but hidden. Columns are ordered
+ * with the useful stuff first, the date is formatted, and rows are banded.
  *
- * The app POSTs { action: 'upsert' | 'delete', entry: {...}, token: '...' }.
- * Rows are keyed by entry id, so edits/deletes stay in sync.
+ * The app POSTs { action: 'upsert' | 'delete', entry: {...}, token?: '...' }.
  */
 
-var SHEET_NAME = 'Tally'
-var HEADERS = [
-  'id', 'date', 'type', 'product', 'category',
-  'quantity', 'unitPrice', 'total', 'currency', 'note', 'source',
-]
+var HEADERS = ['id', 'date', 'product', 'type', 'quantity', 'unitPrice', 'total', 'currency', 'note', 'source']
+
+var CATEGORY_LABELS = {
+  food: 'Food',
+  supplies: 'Supplies',
+  home: 'Home',
+  health: 'Health & Beauty',
+  products: 'Products',
+  tools: 'Tools',
+  transport: 'Transport',
+  services: 'Services & Bills',
+  other: 'Other',
+}
 
 function doPost(e) {
   var lock = LockService.getScriptLock()
@@ -29,14 +28,12 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents)
     var expected = PropertiesService.getScriptProperties().getProperty('TALLY_TOKEN')
-    if (expected && body.token !== expected) {
-      return jsonOut({ ok: false, error: 'unauthorized' })
-    }
-    var sheet = getSheet()
-    if (body.action === 'delete') {
-      deleteRowById(sheet, body.entry.id)
-    } else {
-      upsertRow(sheet, body.entry)
+    if (expected && body.token !== expected) return jsonOut({ ok: false, error: 'unauthorized' })
+
+    // Remove any existing copy first (handles edits + category changes), then re-add.
+    removeFromAllTabs(body.entry.id)
+    if (body.action !== 'delete') {
+      appendEntry(sheetForCategory(body.entry.category), body.entry)
     }
     return jsonOut({ ok: true })
   } catch (err) {
@@ -46,63 +43,75 @@ function doPost(e) {
   }
 }
 
-function getSheet() {
+function tabName(category) {
+  if (CATEGORY_LABELS[category]) return CATEGORY_LABELS[category]
+  if (!category) return 'Other'
+  return category.charAt(0).toUpperCase() + category.slice(1)
+}
+
+function sheetForCategory(category) {
   var ss = SpreadsheetApp.getActiveSpreadsheet()
-  var sheet = ss.getSheetByName(SHEET_NAME)
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME)
-  }
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(HEADERS)
-    sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold')
-    sheet.setFrozenRows(1)
-  }
+  var name = tabName(category)
+  var sheet = ss.getSheetByName(name)
+  if (!sheet) sheet = ss.insertSheet(name)
+  if (sheet.getLastRow() === 0) initSheet(sheet)
   return sheet
+}
+
+function initSheet(sheet) {
+  sheet.appendRow(HEADERS)
+  var header = sheet.getRange(1, 1, 1, HEADERS.length)
+  header.setFontWeight('bold').setFontColor('#fbbf24').setBackground('#0f172a').setVerticalAlignment('middle')
+  sheet.setFrozenRows(1)
+  sheet.setRowHeight(1, 32)
+  sheet.hideColumns(1) // hide the id column
+  sheet.getRange('B2:B').setNumberFormat('MMM d, yyyy  h:mm am/pm') // date
+  sheet.getRange('F2:G').setNumberFormat('#,##0.00') // unitPrice + total
+  sheet.setColumnWidth(2, 170) // date
+  sheet.setColumnWidth(3, 180) // product
+  sheet.setColumnWidth(9, 200) // note
+  try {
+    sheet
+      .getRange(2, 1, sheet.getMaxRows() - 1, HEADERS.length)
+      .applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, false, false)
+  } catch (e) {
+    // banding already applied — ignore
+  }
 }
 
 function entryToRow(entry) {
   return [
     entry.id,
-    entry.createdAt || '',
-    entry.type || '',
+    entry.createdAt ? new Date(entry.createdAt) : '',
     entry.product || '',
-    entry.category || '',
-    entry.quantity === null || entry.quantity === undefined ? '' : entry.quantity,
-    entry.unitPrice === null || entry.unitPrice === undefined ? '' : entry.unitPrice,
-    entry.total === null || entry.total === undefined ? '' : entry.total,
+    entry.type || '',
+    entry.quantity == null ? '' : entry.quantity,
+    entry.unitPrice == null ? '' : entry.unitPrice,
+    entry.total == null ? '' : entry.total,
     entry.currency || '',
     entry.note || '',
     entry.source || '',
   ]
 }
 
-function findRowById(sheet, id) {
-  var lastRow = sheet.getLastRow()
-  if (lastRow < 2) return -1 // only the header (or empty) — no data rows to scan
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
-  for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) === String(id)) return i + 2 // 1-based + header
-  }
-  return -1
+function appendEntry(sheet, entry) {
+  sheet.appendRow(entryToRow(entry))
 }
 
-function upsertRow(sheet, entry) {
-  var row = findRowById(sheet, entry.id)
-  var values = entryToRow(entry)
-  if (row === -1) {
-    sheet.appendRow(values)
-  } else {
-    sheet.getRange(row, 1, 1, values.length).setValues([values])
+function removeFromAllTabs(id) {
+  var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets()
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s]
+    var last = sheet.getLastRow()
+    if (last < 2) continue
+    if (sheet.getRange(1, 1).getValue() !== 'id') continue // only our tabs
+    var ids = sheet.getRange(2, 1, last - 1, 1).getValues()
+    for (var i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]) === String(id)) sheet.deleteRow(i + 2)
+    }
   }
-}
-
-function deleteRowById(sheet, id) {
-  var row = findRowById(sheet, id)
-  if (row !== -1) sheet.deleteRow(row)
 }
 
 function jsonOut(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
-    ContentService.MimeType.JSON,
-  )
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON)
 }
