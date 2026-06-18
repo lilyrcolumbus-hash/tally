@@ -25,7 +25,7 @@ function doPost(e) {
     if (ex && b.token !== ex) return jsonOut({ ok: false, error: 'unauthorized' })
     removeFromAllTabs(b.entry.id)
     if (b.action !== 'delete') appendEntry(sheetForCategory(b.entry.category), b.entry)
-    ensureSummary()
+    buildSummary()
     return jsonOut({ ok: true })
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) })
@@ -96,9 +96,23 @@ function removeFromAllTabs(id) {
   }
 }
 
-// ---- Summary ----
-function ensureSummary() {
-  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Summary')) buildSummary()
+// ---- Summary (robust: finds columns by header name, rebuilt on every write) ----
+function colLetter(n) {
+  var s = ''
+  while (n > 0) {
+    var m = (n - 1) % 26
+    s = String.fromCharCode(65 + m) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+
+function headerCol(sh, name) {
+  var last = sh.getLastColumn()
+  if (last < 1) return 0
+  var hdr = sh.getRange(1, 1, 1, last).getValues()[0]
+  for (var i = 0; i < hdr.length; i++) if (hdr[i] === name) return i + 1
+  return 0
 }
 
 function buildSummary() {
@@ -117,19 +131,26 @@ function buildSummary() {
   sh.getRange('A2:J3').setFontWeight('bold').setBackground('#0f172a').setFontColor('#fbbf24')
   sh.setFrozenRows(3)
 
-  // total=G, type=I, date=J — ranges start at row 2 to skip the header
   for (var i = 0; i < SUMMARY_CATS.length; i++) {
     var r = 4 + i
-    var t = "'" + SUMMARY_CATS[i][0] + "'"
-    var G = t + '!G2:G', I = t + '!I2:I', J = t + '!J2:J'
+    var name = SUMMARY_CATS[i][0]
+    sh.getRange(r, 1).setValue(SUMMARY_CATS[i][1] + ' ' + name)
+    var tab = ss.getSheetByName(name)
+    if (!tab || tab.getLastRow() < 2) {
+      sh.getRange(r, 2, 1, 9).setValues([[0, 0, 0, 0, 0, 0, 0, 0, 0]])
+      continue
+    }
+    var t = "'" + name + "'"
+    var G = t + '!' + colLetter(headerCol(tab, 'total')) + '2:' + colLetter(headerCol(tab, 'total'))
+    var I = t + '!' + colLetter(headerCol(tab, 'type')) + '2:' + colLetter(headerCol(tab, 'type'))
+    var J = t + '!' + colLetter(headerCol(tab, 'date')) + '2:' + colLetter(headerCol(tab, 'date'))
     var wk = '(' + J + '>=TODAY()-7)'
-    var moC = '(MONTH(' + J + ')=MONTH(TODAY()))*(YEAR(' + J + ')=YEAR(TODAY()))'
-    sh.getRange(r, 1).setValue(SUMMARY_CATS[i][1] + ' ' + SUMMARY_CATS[i][0])
+    var mo = '(MONTH(' + J + ')=MONTH(TODAY()))*(YEAR(' + J + ')=YEAR(TODAY()))'
     sh.getRange(r, 2).setFormula('=IFERROR(SUMPRODUCT((' + I + '="income")*' + wk + '*' + G + '),0)')
     sh.getRange(r, 3).setFormula('=IFERROR(SUMPRODUCT((' + I + '="expense")*' + wk + '*' + G + '),0)')
     sh.getRange(r, 4).setFormula('=B' + r + '-C' + r)
-    sh.getRange(r, 5).setFormula('=IFERROR(SUMPRODUCT((' + I + '="income")*' + moC + '*' + G + '),0)')
-    sh.getRange(r, 6).setFormula('=IFERROR(SUMPRODUCT((' + I + '="expense")*' + moC + '*' + G + '),0)')
+    sh.getRange(r, 5).setFormula('=IFERROR(SUMPRODUCT((' + I + '="income")*' + mo + '*' + G + '),0)')
+    sh.getRange(r, 6).setFormula('=IFERROR(SUMPRODUCT((' + I + '="expense")*' + mo + '*' + G + '),0)')
     sh.getRange(r, 7).setFormula('=E' + r + '-F' + r)
     sh.getRange(r, 8).setFormula('=IFERROR(SUMPRODUCT((' + I + '="income")*' + G + '),0)')
     sh.getRange(r, 9).setFormula('=IFERROR(SUMPRODUCT((' + I + '="expense")*' + G + '),0)')
@@ -138,7 +159,7 @@ function buildSummary() {
   var tot = 4 + SUMMARY_CATS.length
   sh.getRange(tot, 1).setValue('TOTAL')
   for (var col = 2; col <= 10; col++) {
-    var L = String.fromCharCode(64 + col)
+    var L = colLetter(col)
     sh.getRange(tot, col).setFormula('=SUM(' + L + '4:' + L + (tot - 1) + ')')
   }
   sh.getRange(tot, 1, 1, 10).setFontWeight('bold').setBackground('#1e293b')
