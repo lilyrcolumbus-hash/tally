@@ -76,13 +76,18 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
                 type="button"
                 onClick={() => onChange({ ...draft, category: c.id, subcategory: null })}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                   active
-                    ? 'border-gold-500 bg-gold-500/15 text-gold-300'
+                    ? ''
                     : !draft.category
-                      ? 'animate-pulse border-gold-500/40 bg-ink-800 text-ink-300'
-                      : 'border-ink-700 bg-ink-800 text-ink-400',
+                      ? 'animate-pulse border-white/20 bg-white/5 text-ink-300'
+                      : 'border-white/10 bg-white/5 text-ink-400',
                 )}
+                style={
+                  active
+                    ? { background: `${c.color}22`, borderColor: c.color, color: c.color, boxShadow: `0 0 14px ${c.color}44` }
+                    : undefined
+                }
               >
                 {c.emoji} {c.label}
               </button>

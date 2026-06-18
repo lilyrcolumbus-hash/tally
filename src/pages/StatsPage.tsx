@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById } from '@/config/categories'
-import { formatCurrency, currentMonthKey, monthKey, dominantCurrency, monthlyFinance } from '@/lib/utils'
+import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
-import { AlertTriangle, TrendingUp, TrendingDown, Scale, Package } from 'lucide-react'
+import { PeriodToggle } from '@/components/ui/PeriodToggle'
+import { AlertTriangle, TrendingUp, TrendingDown, Scale, Package, ChevronRight } from 'lucide-react'
 
 interface InvItem {
   name: string
@@ -14,19 +16,20 @@ interface InvItem {
 
 export function StatsPage() {
   const { entries } = useEntries()
-  const thisMonth = currentMonthKey()
+  const [period, setPeriod] = useState<Period>('month')
+  const periodLabel = period === 'week' ? 'this week' : 'this month'
+
   const currency = useMemo(
     () => dominantCurrency(entries.filter((e) => e.type === 'income' || e.type === 'expense')),
     [entries],
   )
+  const finance = useMemo(() => financeForPeriod(entries, currency, period), [entries, currency, period])
 
-  const finance = useMemo(() => monthlyFinance(entries, currency, thisMonth), [entries, currency, thisMonth])
-
-  // Money by category (this month) — each project's mini P&L
+  // Money by category (this period) — each project's mini P&L
   const byCategory = useMemo(() => {
     const map = new Map<string, { earned: number; spent: number }>()
     for (const e of entries) {
-      if (e.currency !== currency || monthKey(e.createdAt) !== thisMonth) continue
+      if (e.currency !== currency || !inPeriod(e.createdAt, period)) continue
       if (e.type !== 'income' && e.type !== 'expense') continue
       const c = map.get(e.category) ?? { earned: 0, spent: 0 }
       if (e.type === 'income') c.earned += e.total ?? 0
@@ -36,9 +39,9 @@ export function StatsPage() {
     return [...map.entries()]
       .map(([id, v]) => ({ id, ...v, net: v.earned - v.spent }))
       .sort((a, b) => b.earned + b.spent - (a.earned + a.spent))
-  }, [entries, currency, thisMonth])
+  }, [entries, currency, period])
 
-  // Inventory grouped by category → subcategory/product
+  // Inventory grouped by category → subcategory/product (all-time stock)
   const inventoryGroups = useMemo(() => {
     const cats = new Map<string, { value: number; items: Map<string, InvItem> }>()
     for (const e of entries) {
@@ -64,14 +67,14 @@ export function StatsPage() {
       e.quantity <= e.lowStockThreshold,
   )
 
-  const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-
   return (
     <div className="space-y-5">
+      <PeriodToggle value={period} onChange={setPeriod} />
+
       {/* Net profit hero */}
       <Card className="px-4 py-5">
         <p className="flex items-center gap-1.5 text-xs text-ink-500">
-          <Scale size={13} /> Net profit · {monthLabel}
+          <Scale size={13} /> Net profit · {periodLabel}
         </p>
         <p className={`mt-1 text-3xl font-extrabold ${finance.net >= 0 ? 'text-success' : 'text-danger'}`}>
           {finance.net >= 0 ? '+' : '−'}
@@ -96,31 +99,39 @@ export function StatsPage() {
         </Card>
       </div>
 
-      {/* By project / category */}
+      {/* By project / category — tap to drill in */}
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">By project · {monthLabel}</h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">By project · {periodLabel}</h2>
         {byCategory.length === 0 ? (
-          <p className="py-4 text-center text-sm text-ink-600">No money activity this month yet.</p>
+          <p className="py-4 text-center text-sm text-ink-600">No money activity {periodLabel} yet.</p>
         ) : (
           <div className="space-y-2">
             {byCategory.map(({ id, earned, spent, net }) => {
               const cat = categoryById(id)
               return (
-                <Card key={id} className="flex items-center justify-between px-3 py-2.5">
-                  <span className="text-sm text-ink-300">
-                    {cat.emoji} {cat.label}
-                  </span>
-                  <div className="text-right">
-                    <p className={`text-sm font-bold ${net >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {net >= 0 ? '+' : '−'}
-                      {formatCurrency(Math.abs(net), currency)}
-                    </p>
-                    <p className="text-[10px] text-ink-600">
-                      <span className="text-success">{formatCurrency(earned, currency)}</span> ·{' '}
-                      <span className="text-gold-300">{formatCurrency(spent, currency)}</span>
-                    </p>
-                  </div>
-                </Card>
+                <Link key={id} to={`/category/${id}`}>
+                  <Card
+                    className="flex items-center justify-between px-3 py-2.5"
+                    style={{ boxShadow: `inset 3px 0 0 ${cat.color}` }}
+                  >
+                    <span className="flex items-center gap-1 text-sm text-ink-300">
+                      {cat.emoji} {cat.label}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <div className="text-right">
+                        <p className={`text-sm font-bold ${net >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {net >= 0 ? '+' : '−'}
+                          {formatCurrency(Math.abs(net), currency)}
+                        </p>
+                        <p className="text-[10px] text-ink-600">
+                          <span className="text-success">{formatCurrency(earned, currency)}</span> ·{' '}
+                          <span className="text-gold-300">{formatCurrency(spent, currency)}</span>
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-ink-600" />
+                    </div>
+                  </Card>
+                </Link>
               )
             })}
           </div>

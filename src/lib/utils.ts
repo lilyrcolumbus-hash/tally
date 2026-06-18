@@ -61,6 +61,39 @@ export function monthlyFinance(
   return { income, expense, net: income - expense }
 }
 
+export type Period = 'week' | 'month'
+
+/** Monday-based start of the current week (local time). */
+function startOfWeek(): Date {
+  const now = new Date()
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const monday = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - monday)
+  return d
+}
+
+export function inPeriod(iso: string, period: Period): boolean {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return false
+  if (period === 'month') return monthKey(iso) === currentMonthKey()
+  return date >= startOfWeek()
+}
+
+export function financeForPeriod(
+  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null }>,
+  currency: string,
+  period: Period,
+): FinanceSummary {
+  let income = 0
+  let expense = 0
+  for (const e of entries) {
+    if (e.currency !== currency || !inPeriod(e.createdAt, period)) continue
+    if (e.type === 'income') income += e.total ?? 0
+    else if (e.type === 'expense') expense += e.total ?? 0
+  }
+  return { income, expense, net: income - expense }
+}
+
 export function formatDate(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''

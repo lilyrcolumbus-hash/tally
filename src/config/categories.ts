@@ -5,6 +5,8 @@ export interface CategoryDef {
   id: string
   label: string
   emoji: string
+  /** Accent color (hex) for glows / pills. */
+  color: string
   /** Keywords (EN/ES) the AI + offline fallback use to guess the category. */
   keywords: string[]
   /** Suggested subcategories / product lines (the user can also type a custom one). */
@@ -16,6 +18,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'mushrooms',
     label: 'Mushrooms',
     emoji: '🍄',
+    color: '#34d399',
     keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'oyster', 'shiitake', 'reishi', 'lions mane', 'champiñon'],
     subcategories: ['Oyster', 'Pink Oyster', 'Shiitake', "Lion's Mane", 'Reishi'],
   },
@@ -23,6 +26,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'home',
     label: 'Home',
     emoji: '🏠',
+    color: '#38bdf8',
     keywords: ['home', 'casa', 'garden', 'jardin', 'jardín', 'cleaning', 'aseo', 'limpieza', 'utilities', 'servicios', 'food', 'comida', 'grocery', 'personal care', 'rent', 'renta'],
     subcategories: ['Garden', 'Personal Care', 'Utilities', 'Food', 'Misc'],
   },
@@ -30,6 +34,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'digital',
     label: 'Digital Projects',
     emoji: '💻',
+    color: '#a78bfa',
     keywords: ['project', 'proyecto', 'app', 'software', 'domain', 'dominio', 'hosting', 'subscription', 'tally', 'ada', 'smartgrowth', 'dev', 'development'],
     subcategories: ['Tally', 'Ada', 'SmartGrowth'],
   },
@@ -37,6 +42,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'lyhoff',
     label: 'LYHOFF',
     emoji: '👜',
+    color: '#fbbf24',
     keywords: ['lyhoff', 'brand', 'marca'],
     subcategories: [],
   },
@@ -44,6 +50,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'other',
     label: 'Other',
     emoji: '🔵',
+    color: '#94a3b8',
     keywords: [],
     subcategories: [],
   },
