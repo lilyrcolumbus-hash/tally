@@ -159,6 +159,7 @@ export function CapturePanel() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleText()}
+          onFocus={(e) => e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           placeholder='Type it — e.g. "spent 40 on gas"'
           disabled={busy || recorder.isRecording}
           className="flex-1 rounded-xl border border-white/[0.12] bg-white/[0.06] px-3 py-3 text-sm text-ink-300 placeholder:text-ink-600 outline-none backdrop-blur-sm focus:border-gold-500 disabled:opacity-50"

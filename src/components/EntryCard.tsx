@@ -30,7 +30,7 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-semibold text-ink-300">
+          <p className="max-w-[55%] truncate whitespace-nowrap text-sm font-semibold text-ink-300">
             {entry.product ?? <span className="italic text-ink-400">Unnamed {entry.type}</span>}
           </p>
           {lowStock && (
@@ -74,11 +74,19 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
             </button>
           </div>
         ) : (
-          <div className="mt-1 flex items-center justify-end gap-2 text-ink-600">
-            <button onClick={() => onEdit(entry)} aria-label="Edit" className="hover:text-cyan-300">
+          <div className="-mb-2 -mr-2 mt-0.5 flex items-center justify-end text-ink-600">
+            <button
+              onClick={() => onEdit(entry)}
+              aria-label="Edit"
+              className="flex h-11 w-11 items-center justify-center rounded-lg p-2.5 hover:text-cyan-300 active:bg-white/5"
+            >
               <Pencil size={14} />
             </button>
-            <button onClick={() => setConfirming(true)} aria-label="Delete" className="hover:text-danger">
+            <button
+              onClick={() => setConfirming(true)}
+              aria-label="Delete"
+              className="flex h-11 w-11 items-center justify-center rounded-lg p-2.5 hover:text-danger active:bg-white/5"
+            >
               <Trash2 size={14} />
             </button>
           </div>

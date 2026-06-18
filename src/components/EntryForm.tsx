@@ -15,6 +15,11 @@ function numOrNull(value: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** Keep a focused field centered when the mobile keyboard opens. */
+function scrollIntoCenter(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
 export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
   const setType = (type: EntryType) => onChange({ ...draft, type })
 
@@ -56,6 +61,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         <input
           value={draft.product ?? ''}
           onChange={(e) => onChange({ ...draft, product: e.target.value || null })}
+          onFocus={scrollIntoCenter}
           placeholder="e.g. Coffee — leave empty for a plain expense"
           className={inputClass}
         />
@@ -121,6 +127,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           <input
             value={draft.subcategory ?? ''}
             onChange={(e) => onChange({ ...draft, subcategory: e.target.value || null })}
+            onFocus={scrollIntoCenter}
             placeholder="e.g. Shiitake, Garden, Tally…"
             className={inputClass}
           />
@@ -134,6 +141,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
             inputMode="decimal"
             value={draft.quantity ?? ''}
             onChange={(e) => onChange(recompute({ ...draft, quantity: numOrNull(e.target.value) }))}
+            onFocus={scrollIntoCenter}
             placeholder="—"
             className={inputClass}
           />
@@ -142,6 +150,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           <input
             value={draft.unit ?? ''}
             onChange={(e) => onChange({ ...draft, unit: e.target.value || null })}
+            onFocus={scrollIntoCenter}
             placeholder="lb, kg, box…"
             className={inputClass}
           />
@@ -154,6 +163,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           inputMode="decimal"
           value={draft.unitPrice ?? ''}
           onChange={(e) => onChange(recompute({ ...draft, unitPrice: numOrNull(e.target.value) }))}
+          onFocus={scrollIntoCenter}
           placeholder="—"
           className={inputClass}
         />
@@ -165,6 +175,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           inputMode="decimal"
           value={draft.total ?? ''}
           onChange={(e) => onChange({ ...draft, total: numOrNull(e.target.value) })}
+          onFocus={scrollIntoCenter}
           placeholder="—"
           className={cn(inputClass, 'font-semibold text-gold-300')}
         />
@@ -175,6 +186,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         <input
           value={draft.note ?? ''}
           onChange={(e) => onChange({ ...draft, note: e.target.value || null })}
+          onFocus={scrollIntoCenter}
           placeholder="Anything to remember"
           className={inputClass}
         />

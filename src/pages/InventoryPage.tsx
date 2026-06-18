@@ -49,24 +49,26 @@ export function InventoryPage() {
 
   return (
     <div className="space-y-4">
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
-        {pills.map((p) => {
-          const active = filter === p.id
-          return (
-            <button
-              key={p.id}
-              onClick={() => setFilter(p.id)}
-              className={cn(
-                'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                active ? 'text-ink-950' : 'border-white/10 bg-white/5 text-ink-400',
-              )}
-              style={active ? { background: p.color, borderColor: p.color, boxShadow: `0 0 16px ${p.color}55` } : undefined}
-            >
-              {'emoji' in p && p.emoji ? `${p.emoji} ` : ''}
-              {p.label}
-            </button>
-          )
-        })}
+      <div className="fade-right -mx-4">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-4">
+          {pills.map((p) => {
+            const active = filter === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => setFilter(p.id)}
+                className={cn(
+                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                  active ? 'text-ink-950' : 'border-white/10 bg-white/5 text-ink-400',
+                )}
+                style={active ? { background: p.color, borderColor: p.color, boxShadow: `0 0 16px ${p.color}55` } : undefined}
+              >
+                {'emoji' in p && p.emoji ? `${p.emoji} ` : ''}
+                {p.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {groups.length === 0 ? (

@@ -51,3 +51,18 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Right-side gradient fade to hint a horizontally scrollable row */
+.fade-right {
+  position: relative;
+}
+.fade-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--color-ink-950));
+}
