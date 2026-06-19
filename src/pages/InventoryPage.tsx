@@ -12,7 +12,7 @@ export function InventoryPage() {
   const [filter, setFilter] = useState('all')
   const [editing, setEditing] = useState<Entry | null>(null)
 
-  const withProduct = useMemo(() => entries.filter((e) => e.product && e.product.trim()), [entries])
+  const withProduct = useMemo(() => entries.filter((e) => e.type === 'inventory' && e.product && e.product.trim()), [entries])
 
   const groups = useMemo(() => {
     const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']

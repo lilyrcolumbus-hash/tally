@@ -7,7 +7,7 @@ import { normalizeCategoryId } from '@/config/categories'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { isGeminiConfigured } from '@/lib/gemini'
 import { isSheetsConfigured } from '@/lib/sheets'
-import { HardDrive, Sparkles, Sheet as SheetIcon, Check, X, Trash2 } from 'lucide-react'
+import { HardDrive, Sparkles, Sheet as SheetIcon, Check, X, Trash2, Download } from 'lucide-react'
 
 const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'GBP', 'BRL']
 
@@ -34,6 +34,24 @@ export function SettingsPage() {
     const next = { ...settings, ...patch }
     setSettings(next)
     saveSettings(next)
+  }
+
+  const handleExport = () => {
+    if (entries.length === 0) {
+      toast('No entries to export')
+      return
+    }
+    const json = JSON.stringify(entries, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tally-backup-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${entries.length} entries`)
   }
 
   const handleClearOther = async () => {
@@ -103,6 +121,18 @@ export function SettingsPage() {
             ? 'Everything you add is saved on this device and copied to your Google Sheet automatically.'
             : 'Everything you add is saved on this device.'}
         </p>
+      </Card>
+
+      {/* Backup */}
+      <Card className="px-4 py-4">
+        <h2 className="mb-1 text-sm font-bold text-ink-300">Backup</h2>
+        <p className="mb-3 text-xs text-ink-500">
+          Download all your data as a JSON file. Keep it safe — it's your only backup if this device is lost.
+        </p>
+        <Button variant="secondary" onClick={handleExport}>
+          <Download size={15} />
+          Download all data ({entries.length} entries)
+        </Button>
       </Card>
 
       {/* Maintenance */}
