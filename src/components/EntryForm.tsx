@@ -181,6 +181,17 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         />
       </Field>
 
+      {/* Date */}
+      <Field label="Date">
+        <input
+          type="date"
+          value={draft.date ?? ''}
+          onChange={(e) => onChange({ ...draft, date: e.target.value || undefined })}
+          onFocus={scrollIntoCenter}
+          className={inputClass}
+        />
+      </Field>
+
       {/* Note */}
       <Field label="Note (optional)">
         <input

@@ -22,6 +22,7 @@ function toDraft(entry: Entry): EntryDraft {
     unitPrice: entry.unitPrice,
     total: entry.total,
     note: entry.note,
+    date: entry.createdAt.slice(0, 10),
   }
 }
 
@@ -48,6 +49,7 @@ export function EditEntrySheet({ entry, onSave, onClose }: EditEntrySheetProps) 
       total: draft.total,
       note: draft.note,
       lowStockThreshold: draft.type === 'inventory' ? (entry.lowStockThreshold ?? 3) : null,
+      createdAt: draft.date ? new Date(draft.date).toISOString() : entry.createdAt,
     }
     try {
       await onSave(updated)

@@ -56,7 +56,7 @@ export function ConfirmSheet({
       note: d.note,
       source,
       lowStockThreshold: d.type === 'inventory' ? lowStockDefault : null,
-      createdAt: nowIso,
+      createdAt: d.date ? new Date(d.date).toISOString() : nowIso,
     }))
     try {
       await onConfirm(entries)

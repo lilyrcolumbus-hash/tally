@@ -39,6 +39,8 @@ export interface EntryDraft {
   unitPrice: number | null
   total: number | null
   note: string | null
+  /** Optional override date (YYYY-MM-DD). If absent, save uses current time. */
+  date?: string
 }
 
 /** Multiple drafts (e.g. a receipt photo with several line items). */
