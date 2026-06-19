@@ -1,4 +1,5 @@
 import type { Entry } from '@/types'
+import { normalizeCategoryId } from '@/config/categories'
 import { getSupabase } from '@/lib/supabase'
 import { pushToSheet } from '@/lib/sheets'
 
@@ -107,25 +108,27 @@ export async function listEntries(): Promise<Entry[]> {
 }
 
 export async function addEntry(entry: Entry): Promise<void> {
+  const normalized = { ...entry, category: normalizeCategoryId(entry.category) }
   const session = await cloud()
   if (session) {
-    const { error } = await session.client.from('entries').insert(toRow(entry, session.userId))
+    const { error } = await session.client.from('entries').insert(toRow(normalized, session.userId))
     if (error) throw new Error(error.message)
   } else {
-    writeLocal([entry, ...readLocal()])
+    writeLocal([normalized, ...readLocal()])
   }
-  void pushToSheet('upsert', entry)
+  void pushToSheet('upsert', normalized)
 }
 
 export async function updateEntry(updated: Entry): Promise<void> {
+  const normalized = { ...updated, category: normalizeCategoryId(updated.category) }
   const session = await cloud()
   if (session) {
-    const { error } = await session.client.from('entries').update(toRow(updated)).eq('id', updated.id)
+    const { error } = await session.client.from('entries').update(toRow(normalized)).eq('id', normalized.id)
     if (error) throw new Error(error.message)
   } else {
-    writeLocal(readLocal().map((e) => (e.id === updated.id ? updated : e)))
+    writeLocal(readLocal().map((e) => (e.id === normalized.id ? normalized : e)))
   }
-  void pushToSheet('upsert', updated)
+  void pushToSheet('upsert', normalized)
 }
 
 export async function removeEntry(entry: Entry): Promise<void> {
