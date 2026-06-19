@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { CapturePanel } from '@/components/capture/CapturePanel'
 import { EntryList } from '@/components/EntryList'
 import { Card } from '@/components/ui/Card'
@@ -36,7 +37,8 @@ export function HomePage() {
         </h2>
         <div className="grid grid-cols-2 gap-2">
           {perCategory.map(({ cat, income, expense, net }) => (
-            <Card key={cat.id} className="px-3 py-2.5" style={{ background: `${cat.color}1a`, boxShadow: `inset 3px 0 0 ${cat.color}` }}>
+            <Link key={cat.id} to={`/category/${cat.id}`}>
+            <Card className="px-3 py-2.5" style={{ background: `${cat.color}1a`, boxShadow: `inset 3px 0 0 ${cat.color}` }}>
               <p className="text-xs font-medium text-ink-300">
                 {cat.emoji} {cat.label}
               </p>
@@ -49,6 +51,7 @@ export function HomePage() {
                 <span className="text-danger">{formatCurrency(expense, currency)}</span>
               </p>
             </Card>
+            </Link>
           ))}
         </div>
       </section>

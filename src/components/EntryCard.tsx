@@ -31,7 +31,7 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <p className="max-w-[55%] truncate whitespace-nowrap text-sm font-semibold text-ink-300">
-            {entry.product ?? <span className="italic text-ink-400">Unnamed {entry.type}</span>}
+            {entry.product ?? <span className="italic text-ink-500">{cat.label}</span>}
           </p>
           {lowStock && (
             <span className="inline-flex items-center gap-0.5 rounded-full bg-danger/15 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
