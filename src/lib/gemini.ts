@@ -10,6 +10,12 @@ export const isGeminiConfigured = hasClientKey || useProxy
 
 const MODEL = 'gemini-2.5-flash'
 
+export interface InventoryContextItem {
+  family: string
+  category: string
+  components: Array<{ name: string; unit: string | null }>
+}
+
 export interface ExtractionInput {
   text?: string
   audio?: { base64: string; mimeType: string }
@@ -17,6 +23,8 @@ export interface ExtractionInput {
   /** The mode the user is in — used as a hint, not a hard rule. */
   defaultType: EntryType
   currency: string
+  /** Existing products already in the user's inventory, for context-aware classification. */
+  inventoryContext?: InventoryContextItem[]
 }
 
 function buildPrompt(input: ExtractionInput): string {
@@ -31,9 +39,13 @@ Each record:
   • "expense" — money spent on services, utilities, or consumables they will NOT resell (electricity, packaging, tools, restaurant supplies).
   • "inventory" — physical goods they HAVE, GREW, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., mushrooms, produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
   The user pre-selected "${input.defaultType}" as the default type — use it when no other type is clearly evident from the text.
-- "product": the item name IN ENGLISH — translate it if the user spoke Spanish (café→Coffee, azúcar→Sugar). Null if they only stated an amount with no product.
+- "subcategory": the PRODUCT FAMILY name IN ENGLISH — the master product these components belong to.
+  • For "inventory": use the product family / brand name (e.g. "Hummingbird Nectar", "Oyster", "Shiitake", "Garden Herbs"). This groups components together.
+  • For "income"/"expense": the product line or project (e.g. "Shiitake" for Mushrooms, "Garden" for Home, "Tally" for Digital), or null.
+- "product": the specific COMPONENT or ITEM IN ENGLISH (translate from Spanish).
+  • For "inventory": the specific component/variant being tracked (e.g. "Bags", "Labels", "Sugar", "Fresh", "Dried", "Seeds", "Jars", "Powder"). If there is no component distinction, use the full product name (same as subcategory).
+  • For "income"/"expense": the item name. Null if they only stated an amount.
 - "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
-- "subcategory": the product line / project within the category, IN ENGLISH (e.g. Shiitake or Oyster for Mushrooms; Garden or Utilities for Home; Tally or Ada for Digital Projects), or null.
 - "quantity": number of units, or null.
 - "unit": the unit of measure, normalized to a standard English abbreviation (lb, kg, g, oz, l, ml, box, bag, bottle, pc, doz…). Always translate and normalize: "libras"→"lb", "kilos"→"kg", "gramos"→"g", "cajas"→"box", "litros"→"l". Null if not stated.
 - "unitPrice": price per unit, or null.
@@ -47,17 +59,23 @@ Currency is ${input.currency}; return plain numbers (no symbols). All text field
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
 Example input: "vendí 3 libras de hongos shiitake a 5 cada una"
-Example output: [{"type":"income","product":"Shiitake mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false}]
+Example output: [{"type":"income","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false}]
 Example input: "una libra de azúcar para la casa"
 Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null,"isConsumption":false}]
 Example input: "bought 20 lb oyster mushrooms for $80"
-Example output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false}]
+Example output: [{"type":"inventory","product":"Fresh Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false}]
+Example input: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
+Example output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false}]
 Example input: "vendí 50"
 Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null,"isConsumption":false}]
 Example input: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
 Example output: [{"type":"inventory","product":"Apple","category":"home","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false},{"type":"expense","product":"Apple","category":"home","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true}]
 
-${input.text ? `User text: "${input.text}"` : 'Extract from the attached audio/photo.'}`
+${
+    input.inventoryContext && input.inventoryContext.length > 0
+      ? `KNOWN PRODUCT FAMILIES (subcategory = family; product = specific component). When the new entry matches a known family, use that exact family as subcategory and identify the specific component as product:\n${input.inventoryContext.map((p) => `• family "${p.family}" [${p.category}]${p.components.length > 0 ? ': components = ' + p.components.map((c) => `${c.name}${c.unit ? ` (${c.unit})` : ''}`).join(', ') : ''}`).join('\n')}\n\n`
+      : ''
+  }${input.text ? `User text: "${input.text}"` : 'Extract from the attached audio/photo.'}`
 }
 
 interface RawDraft {

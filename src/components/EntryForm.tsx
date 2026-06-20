@@ -17,17 +17,39 @@ function numOrNull(value: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-/** Keep a focused field centered when the mobile keyboard opens. */
 function scrollIntoCenter(e: React.FocusEvent<HTMLInputElement>) {
   e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
 export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
   const { entries } = useEntries()
-  const knownProducts = useMemo(
-    () => [...new Set(entries.map((e) => e.product).filter(Boolean) as string[])].sort(),
-    [entries],
-  )
+  const isInv = draft.type === 'inventory'
+
+  // Known product families (subcategories + products as fallback) for datalist
+  const knownFamilies = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) {
+      if (e.subcategory?.trim()) set.add(e.subcategory.trim())
+      if (e.product?.trim()) set.add(e.product.trim())
+    }
+    // Also add preset subcategories from categories config
+    for (const c of CATEGORIES) {
+      for (const s of c.subcategories) set.add(s)
+    }
+    return [...set].sort()
+  }, [entries])
+
+  // Known components for the current family
+  const knownComponents = useMemo(() => {
+    const set = new Set<string>()
+    const currentFamily = draft.subcategory?.trim().toLowerCase()
+    for (const e of entries) {
+      if (!e.product?.trim()) continue
+      const entryFamily = (e.subcategory?.trim() || e.product.trim()).toLowerCase()
+      if (!currentFamily || entryFamily === currentFamily) set.add(e.product.trim())
+    }
+    return [...set].sort()
+  }, [entries, draft.subcategory])
 
   const setType = (type: EntryType) => onChange({ ...draft, type })
 
@@ -52,9 +74,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
               onClick={() => setType(t)}
               className={cn(
                 'flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-medium capitalize transition-colors',
-                active
-                  ? 'border-gold-500 bg-gold-500/10 text-gold-300'
-                  : 'border-ink-700 bg-ink-800 text-ink-400',
+                active ? 'border-gold-500 bg-gold-500/10 text-gold-300' : 'border-ink-700 bg-ink-800 text-ink-400',
               )}
             >
               <Icon size={15} />
@@ -64,27 +84,85 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         })}
       </div>
 
-      {/* Product */}
-      <Field label="Product (optional)">
-        <input
-          list="product-suggestions"
-          autoComplete="off"
-          value={draft.product ?? ''}
-          onChange={(e) => onChange({ ...draft, product: e.target.value || null })}
-          onFocus={scrollIntoCenter}
-          placeholder="e.g. Coffee — leave empty for a plain expense"
-          className={inputClass}
-        />
-      </Field>
-      {knownProducts.length > 0 && (
-        <datalist id="product-suggestions">
-          {knownProducts.map((p) => (
-            <option key={p} value={p} />
-          ))}
-        </datalist>
+      {isInv ? (
+        <>
+          {/* INVENTORY: Product family first, then component */}
+          <Field label="Product family">
+            {subcategoriesFor(draft.category).length > 0 && (
+              <div className="mb-1.5 flex flex-wrap gap-1.5">
+                {subcategoriesFor(draft.category).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onChange({ ...draft, subcategory: draft.subcategory === s ? null : s })}
+                    className={cn(
+                      'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                      draft.subcategory === s
+                        ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
+                        : 'border-ink-700 bg-ink-800 text-ink-400',
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <input
+              list="family-suggestions"
+              autoComplete="off"
+              value={draft.subcategory ?? ''}
+              onChange={(e) => onChange({ ...draft, subcategory: e.target.value || null })}
+              onFocus={scrollIntoCenter}
+              placeholder="e.g. Hummingbird Nectar, Oyster Mushrooms…"
+              className={inputClass}
+            />
+            <datalist id="family-suggestions">
+              {knownFamilies.map((f) => (
+                <option key={f} value={f} />
+              ))}
+            </datalist>
+          </Field>
+
+          <Field label="Component / Item">
+            <input
+              list="component-suggestions"
+              autoComplete="off"
+              value={draft.product ?? ''}
+              onChange={(e) => onChange({ ...draft, product: e.target.value || null })}
+              onFocus={scrollIntoCenter}
+              placeholder="e.g. Bags, Labels, Sugar, Seeds, Fresh, Dried…"
+              className={inputClass}
+            />
+            <datalist id="component-suggestions">
+              {knownComponents.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </Field>
+        </>
+      ) : (
+        <>
+          {/* NON-INVENTORY: original product + subcategory order */}
+          <Field label="Product (optional)">
+            <input
+              list="product-suggestions"
+              autoComplete="off"
+              value={draft.product ?? ''}
+              onChange={(e) => onChange({ ...draft, product: e.target.value || null })}
+              onFocus={scrollIntoCenter}
+              placeholder="e.g. Coffee — leave empty for a plain expense"
+              className={inputClass}
+            />
+            <datalist id="product-suggestions">
+              {knownComponents.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          </Field>
+        </>
       )}
 
-      {/* Category — tap to pick (pulses when the AI was unsure) */}
+      {/* Category */}
       <div>
         <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink-400">
           Category
@@ -119,8 +197,8 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         </div>
       </div>
 
-      {/* Subcategory — chips for the chosen category + free text */}
-      {draft.category && (
+      {/* Subcategory for non-inventory */}
+      {!isInv && draft.category && (
         <Field label="Subcategory / product line (optional)">
           {subcategoriesFor(draft.category).length > 0 && (
             <div className="mb-1.5 flex flex-wrap gap-1.5">
@@ -151,7 +229,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         </Field>
       )}
 
-      {/* Quantity + Unit of measure */}
+      {/* Quantity + Unit */}
       <div className="grid grid-cols-2 gap-2">
         <Field label="Quantity">
           <input
@@ -168,7 +246,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
             value={draft.unit ?? ''}
             onChange={(e) => onChange({ ...draft, unit: e.target.value || null })}
             onFocus={scrollIntoCenter}
-            placeholder="lb, kg, box…"
+            placeholder="lb, kg, bag, label…"
             className={inputClass}
           />
         </Field>
@@ -209,15 +287,15 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         />
       </Field>
 
-      {/* Low-stock threshold — only for inventory entries */}
-      {draft.type === 'inventory' && (
+      {/* Low-stock threshold — inventory only */}
+      {isInv && (
         <Field label="Low-stock alert (units)">
           <input
             inputMode="decimal"
             value={draft.lowStockThreshold ?? ''}
             onChange={(e) => onChange({ ...draft, lowStockThreshold: numOrNull(e.target.value) })}
             onFocus={scrollIntoCenter}
-            placeholder="Alert when below this quantity"
+            placeholder="Alert when stock drops below this number"
             className={inputClass}
           />
         </Field>

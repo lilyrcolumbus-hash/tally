@@ -9,8 +9,24 @@ import { loadSettings } from '@/lib/settings'
 import { blobToBase64, cn } from '@/lib/utils'
 import { ConfirmSheet } from '@/components/capture/ConfirmSheet'
 
+function buildInventoryContext(entries: import('@/types').Entry[]): import('@/lib/gemini').InventoryContextItem[] {
+  const familyMap = new Map<string, import('@/lib/gemini').InventoryContextItem>()
+  for (const e of entries) {
+    if (!e.product?.trim()) continue
+    const family = e.subcategory?.trim() || e.product.trim()
+    const key = `${e.category}::${family}`
+    const item = familyMap.get(key) ?? { family, category: e.category, components: [] }
+    const compName = e.product.trim()
+    if (!item.components.some((c) => c.name === compName)) {
+      item.components.push({ name: compName, unit: e.unit })
+    }
+    familyMap.set(key, item)
+  }
+  return Array.from(familyMap.values())
+}
+
 export function CapturePanel() {
-  const { add } = useEntries()
+  const { add, entries } = useEntries()
   const recorder = useRecorder()
   const settings = loadSettings()
 
@@ -29,7 +45,12 @@ export function CapturePanel() {
   ) => {
     setBusy(true)
     try {
-      const result = await extractEntries({ ...args, defaultType: mode, currency: settings.currency })
+      const result = await extractEntries({
+        ...args,
+        defaultType: mode,
+        currency: settings.currency,
+        inventoryContext: buildInventoryContext(entries),
+      })
       if (result.drafts.length === 0) {
         toast.error('Nothing to add — try again')
         return
