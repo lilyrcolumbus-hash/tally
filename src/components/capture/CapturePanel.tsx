@@ -115,6 +115,10 @@ export function CapturePanel() {
         ))}
       </div>
 
+      <p className="mb-3 -mt-1 text-center text-[10px] text-ink-600">
+        AI will classify as <span className="text-gold-400">{mode}</span> unless it clearly identifies something else
+      </p>
+
       {/* Voice + photo big buttons */}
       <div className="mb-3 grid grid-cols-2 gap-3">
         <button

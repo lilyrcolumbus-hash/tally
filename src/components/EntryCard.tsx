@@ -2,9 +2,15 @@ import { useState } from 'react'
 import type { Entry } from '@/types'
 import { categoryById } from '@/config/categories'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Mic, Camera, Type, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
+import { Mic, Camera, Type, AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package } from 'lucide-react'
 
 const sourceIcon = { voice: Mic, photo: Camera, text: Type }
+const typeIcon = { income: TrendingUp, expense: TrendingDown, inventory: Package }
+const typeColor = {
+  income: 'text-success',
+  expense: 'text-danger',
+  inventory: 'text-[#4285F4]',
+}
 
 interface EntryCardProps {
   entry: Entry
@@ -16,6 +22,7 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
   const [confirming, setConfirming] = useState(false)
   const cat = categoryById(entry.category)
   const SourceIcon = sourceIcon[entry.source]
+  const TypeIcon = typeIcon[entry.type]
   const lowStock =
     entry.type === 'inventory' &&
     entry.quantity !== null &&
@@ -24,8 +31,11 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-ink-800 bg-ink-900/70 px-3 py-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-800 text-lg">
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-800 text-lg">
         {cat.emoji}
+        <span className={`absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-ink-950 ${typeColor[entry.type]}`}>
+          <TypeIcon size={9} strokeWidth={2.5} />
+        </span>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -40,7 +50,7 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
           )}
         </div>
         <p className="flex items-center gap-1.5 text-xs text-ink-400">
-          <SourceIcon size={11} />
+          <TypeIcon size={11} className={typeColor[entry.type]} />
           {cat.label}
           {entry.subcategory && <span className="text-cyan-300">› {entry.subcategory}</span>}
           {entry.quantity !== null && (

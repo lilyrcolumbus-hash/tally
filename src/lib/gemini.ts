@@ -26,12 +26,16 @@ function buildPrompt(input: ExtractionInput): string {
 Return ONLY JSON: an array of records. One record per distinct item. A receipt photo can yield many records.
 
 Each record:
-- "type": "income" (money they RECEIVED — a sale or earning), "expense" (money that went OUT), or "inventory" (a physical thing they HAVE, with a quantity). If unsure, use "${input.defaultType}".
+- "type":
+  • "income" — money they RECEIVED (a sale, payment, or earning).
+  • "expense" — money spent on services, utilities, or consumables they will NOT resell (electricity, packaging, tools, restaurant supplies).
+  • "inventory" — physical goods they HAVE, GREW, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., mushrooms, produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
+  The user pre-selected "${input.defaultType}" as the default type — use it when no other type is clearly evident from the text.
 - "product": the item name IN ENGLISH — translate it if the user spoke Spanish (café→Coffee, azúcar→Sugar). Null if they only stated an amount with no product.
 - "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
 - "subcategory": the product line / project within the category, IN ENGLISH (e.g. Shiitake or Oyster for Mushrooms; Garden or Utilities for Home; Tally or Ada for Digital Projects), or null.
 - "quantity": number of units, or null.
-- "unit": the unit of measure they said (lb, pound, libra, kg, kilo, gram, liter, litro, ml, box, caja, bag, bottle, piece, dozen…), in the user's words, or null.
+- "unit": the unit of measure, normalized to a standard English abbreviation (lb, kg, g, oz, l, ml, box, bag, bottle, pc, doz…). Always translate and normalize: "libras"→"lb", "kilos"→"kg", "gramos"→"g", "cajas"→"box", "litros"→"l". Null if not stated.
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
 - "note": ONLY a genuinely extra remark (in English), or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
@@ -43,6 +47,8 @@ Example input: "vendí 3 libras de hongos shiitake a 5 cada una"
 Example output: [{"type":"income","product":"Shiitake mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null}]
 Example input: "una libra de azúcar para la casa"
 Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null}]
+Example input: "bought 20 lb oyster mushrooms for $80"
+Example output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null}]
 Example input: "vendí 50"
 Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null}]
 
@@ -61,6 +67,26 @@ interface RawDraft {
   note?: string | null
 }
 
+const UNIT_MAP: Record<string, string> = {
+  lbs: 'lb', pound: 'lb', pounds: 'lb', libra: 'lb', libras: 'lb',
+  kilogram: 'kg', kilograms: 'kg', kilo: 'kg', kilos: 'kg', kilogramo: 'kg', kilogramos: 'kg',
+  gram: 'g', grams: 'g', gramo: 'g', gramos: 'g',
+  liter: 'l', liters: 'l', litre: 'l', litres: 'l', litro: 'l', litros: 'l',
+  milliliter: 'ml', milliliters: 'ml', mililitro: 'ml', mililitros: 'ml',
+  ounce: 'oz', ounces: 'oz', onza: 'oz', onzas: 'oz',
+  boxes: 'box', caja: 'box', cajas: 'box',
+  bags: 'bag', bolsa: 'bag', bolsas: 'bag',
+  bottles: 'bottle', botella: 'bottle', botellas: 'bottle',
+  piece: 'pc', pieces: 'pc', pieza: 'pc', piezas: 'pc',
+  dozen: 'doz', docena: 'doz', docenas: 'doz',
+}
+
+function normalizeUnit(raw: string | null): string | null {
+  if (!raw) return null
+  const lower = raw.trim().toLowerCase()
+  return UNIT_MAP[lower] ?? raw.trim()
+}
+
 function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const validTypes: EntryType[] = ['inventory', 'expense', 'income']
   const type: EntryType = validTypes.includes(raw.type as EntryType) ? (raw.type as EntryType) : fallbackType
@@ -72,7 +98,7 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   if (total === null && quantity !== null && unitPrice !== null) total = quantity * unitPrice
   const product = typeof raw.product === 'string' && raw.product.trim() ? raw.product.trim() : null
   const subcategory = typeof raw.subcategory === 'string' && raw.subcategory.trim() ? raw.subcategory.trim() : null
-  const unit = typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit.trim() : null
+  const unit = normalizeUnit(typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit : null)
   const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null
   return { type, product, category, subcategory, quantity, unit, unitPrice, total, note }
 }

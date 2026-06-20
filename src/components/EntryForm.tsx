@@ -1,7 +1,9 @@
+import { useMemo } from 'react'
 import type { EntryDraft, EntryType } from '@/types'
 import { CATEGORIES, subcategoriesFor } from '@/config/categories'
 import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useEntries } from '@/contexts/EntriesContext'
 
 interface EntryFormProps {
   draft: EntryDraft
@@ -21,6 +23,12 @@ function scrollIntoCenter(e: React.FocusEvent<HTMLInputElement>) {
 }
 
 export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
+  const { entries } = useEntries()
+  const knownProducts = useMemo(
+    () => [...new Set(entries.map((e) => e.product).filter(Boolean) as string[])].sort(),
+    [entries],
+  )
+
   const setType = (type: EntryType) => onChange({ ...draft, type })
 
   const recompute = (next: EntryDraft): EntryDraft => {
@@ -59,6 +67,8 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       {/* Product */}
       <Field label="Product (optional)">
         <input
+          list="product-suggestions"
+          autoComplete="off"
           value={draft.product ?? ''}
           onChange={(e) => onChange({ ...draft, product: e.target.value || null })}
           onFocus={scrollIntoCenter}
@@ -66,6 +76,13 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           className={inputClass}
         />
       </Field>
+      {knownProducts.length > 0 && (
+        <datalist id="product-suggestions">
+          {knownProducts.map((p) => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
+      )}
 
       {/* Category — tap to pick (pulses when the AI was unsure) */}
       <div>
@@ -191,6 +208,20 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           className={inputClass}
         />
       </Field>
+
+      {/* Low-stock threshold — only for inventory entries */}
+      {draft.type === 'inventory' && (
+        <Field label="Low-stock alert (units)">
+          <input
+            inputMode="decimal"
+            value={draft.lowStockThreshold ?? ''}
+            onChange={(e) => onChange({ ...draft, lowStockThreshold: numOrNull(e.target.value) })}
+            onFocus={scrollIntoCenter}
+            placeholder="Alert when below this quantity"
+            className={inputClass}
+          />
+        </Field>
+      )}
 
       {/* Note */}
       <Field label="Note (optional)">

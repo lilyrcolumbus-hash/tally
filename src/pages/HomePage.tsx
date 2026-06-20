@@ -4,7 +4,7 @@ import { CapturePanel } from '@/components/capture/CapturePanel'
 import { EntryList } from '@/components/EntryList'
 import { Card } from '@/components/ui/Card'
 import { useEntries } from '@/contexts/EntriesContext'
-import { MAIN_CATEGORIES, normalizeCategoryId } from '@/config/categories'
+import { MAIN_CATEGORIES, normalizeCategoryId, categoryById } from '@/config/categories'
 import { dominantCurrency, financeForPeriod, formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
@@ -17,14 +17,17 @@ export function HomePage() {
     [entries],
   )
 
-  const perCategory = useMemo(
-    () =>
-      MAIN_CATEGORIES.map((c) => {
-        const mine = entries.filter((e) => normalizeCategoryId(e.category) === c.id)
-        return { cat: c, ...financeForPeriod(mine, currency, 'month') }
-      }),
-    [entries, currency],
-  )
+  const perCategory = useMemo(() => {
+    const result = MAIN_CATEGORIES.map((c) => {
+      const mine = entries.filter((e) => normalizeCategoryId(e.category) === c.id)
+      return { cat: c, ...financeForPeriod(mine, currency, 'month') }
+    })
+    const otherEntries = entries.filter((e) => normalizeCategoryId(e.category) === 'other')
+    if (otherEntries.length > 0) {
+      result.push({ cat: categoryById('other'), ...financeForPeriod(otherEntries, currency, 'month') })
+    }
+    return result
+  }, [entries, currency])
 
   const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long' })
 

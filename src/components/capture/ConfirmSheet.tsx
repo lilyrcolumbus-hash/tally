@@ -55,7 +55,7 @@ export function ConfirmSheet({
       currency,
       note: d.note,
       source,
-      lowStockThreshold: d.type === 'inventory' ? lowStockDefault : null,
+      lowStockThreshold: d.type === 'inventory' ? (d.lowStockThreshold ?? lowStockDefault) : null,
       createdAt: d.date ? new Date(d.date).toISOString() : nowIso,
     }))
     try {

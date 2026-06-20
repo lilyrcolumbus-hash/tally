@@ -49,7 +49,7 @@ export function StatsPage() {
       if (e.type !== 'inventory' || e.currency !== currency) continue
       const cid = normalizeCategoryId(e.category)
       const cat = cats.get(cid) ?? { value: 0, items: new Map<string, InvItem>() }
-      const key = e.subcategory || e.product || 'Item'
+      const key = e.product || e.subcategory || 'Item'
       const item = cat.items.get(key) ?? { name: key, qty: 0, value: 0, unit: null }
       item.qty += e.quantity ?? 0
       item.value += e.total ?? 0
