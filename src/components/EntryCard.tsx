@@ -2,9 +2,8 @@ import { useState } from 'react'
 import type { Entry } from '@/types'
 import { categoryById } from '@/config/categories'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Mic, Camera, Type, AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package } from 'lucide-react'
+import { AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package } from 'lucide-react'
 
-const sourceIcon = { voice: Mic, photo: Camera, text: Type }
 const typeIcon = { income: TrendingUp, expense: TrendingDown, inventory: Package }
 const typeColor = {
   income: 'text-success',
@@ -21,7 +20,6 @@ interface EntryCardProps {
 export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
   const [confirming, setConfirming] = useState(false)
   const cat = categoryById(entry.category)
-  const SourceIcon = sourceIcon[entry.source]
   const TypeIcon = typeIcon[entry.type]
   const lowStock =
     entry.type === 'inventory' &&
