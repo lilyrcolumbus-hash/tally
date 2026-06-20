@@ -39,18 +39,23 @@ Each record:
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
 - "note": ONLY a genuinely extra remark (in English), or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
+- "isConsumption": true ONLY for "expense" records that represent the user consuming, eating, using up, discarding, or wasting something from their own stock. Set product/unit/quantity to the amount consumed and total to quantity × unitPrice. Do NOT set for regular purchases, services, or utilities.
+
+COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phrase, return TWO records: one "inventory" for the purchase, and one "expense" with isConsumption:true for the consumed portion. The consumed record must have the same product and unitPrice as the purchased one so the app can subtract it from stock.
 
 Currency is ${input.currency}; return plain numbers (no symbols). All text fields (product, subcategory, note) must be in ENGLISH.
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
 Example input: "vendí 3 libras de hongos shiitake a 5 cada una"
-Example output: [{"type":"income","product":"Shiitake mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null}]
+Example output: [{"type":"income","product":"Shiitake mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false}]
 Example input: "una libra de azúcar para la casa"
-Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null}]
+Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null,"isConsumption":false}]
 Example input: "bought 20 lb oyster mushrooms for $80"
-Example output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null}]
+Example output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false}]
 Example input: "vendí 50"
-Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null}]
+Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null,"isConsumption":false}]
+Example input: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
+Example output: [{"type":"inventory","product":"Apple","category":"home","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false},{"type":"expense","product":"Apple","category":"home","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true}]
 
 ${input.text ? `User text: "${input.text}"` : 'Extract from the attached audio/photo.'}`
 }
@@ -65,6 +70,7 @@ interface RawDraft {
   unitPrice?: number | null
   total?: number | null
   note?: string | null
+  isConsumption?: boolean
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -100,7 +106,8 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const subcategory = typeof raw.subcategory === 'string' && raw.subcategory.trim() ? raw.subcategory.trim() : null
   const unit = normalizeUnit(typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit : null)
   const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null
-  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note }
+  const isConsumption = raw.isConsumption === true && type === 'expense'
+  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }

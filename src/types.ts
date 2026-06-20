@@ -25,6 +25,8 @@ export interface Entry {
   source: EntrySource
   /** Alert when quantity drops to/below this (inventory only). */
   lowStockThreshold: number | null
+  /** True when this expense represents consuming/using stock (reduces inventory count). */
+  isConsumption?: boolean
   createdAt: string
 }
 
@@ -43,6 +45,8 @@ export interface EntryDraft {
   lowStockThreshold?: number | null
   /** Optional override date (YYYY-MM-DD). If absent, save uses current time. */
   date?: string
+  /** True when this expense represents consuming/using stock (reduces inventory count). */
+  isConsumption?: boolean
 }
 
 /** Multiple drafts (e.g. a receipt photo with several line items). */

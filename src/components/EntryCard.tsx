@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Entry } from '@/types'
 import { categoryById } from '@/config/categories'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package } from 'lucide-react'
+import { AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package, UtensilsCrossed } from 'lucide-react'
 
 const typeIcon = { income: TrendingUp, expense: TrendingDown, inventory: Package }
 const typeColor = {
@@ -48,8 +48,8 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
           )}
         </div>
         <p className="flex items-center gap-1.5 text-xs text-ink-400">
-          <TypeIcon size={11} className={typeColor[entry.type]} />
-          {cat.label}
+          {entry.isConsumption ? <UtensilsCrossed size={11} className="text-orange-400" /> : <TypeIcon size={11} className={typeColor[entry.type]} />}
+          {entry.isConsumption ? <span className="text-orange-400">Consumed</span> : cat.label}
           {entry.subcategory && <span className="text-cyan-300">› {entry.subcategory}</span>}
           {entry.quantity !== null && (
             <span>

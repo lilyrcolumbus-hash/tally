@@ -58,6 +58,19 @@ export function StatsPage() {
       cat.value += e.total ?? 0
       cats.set(cid, cat)
     }
+    // Subtract consumed-from-stock expenses
+    for (const e of entries) {
+      if (!e.isConsumption || e.type !== 'expense' || e.currency !== currency) continue
+      const cid = normalizeCategoryId(e.category)
+      const cat = cats.get(cid)
+      if (!cat) continue
+      const key = e.product || e.subcategory || 'Item'
+      const item = cat.items.get(key)
+      if (!item) continue
+      item.qty -= e.quantity ?? 0
+      item.value -= e.total ?? 0
+      cat.value -= e.total ?? 0
+    }
     return [...cats.entries()].map(([id, d]) => ({ id, value: d.value, items: [...d.items.values()] }))
   }, [entries, currency])
 

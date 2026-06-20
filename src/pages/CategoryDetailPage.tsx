@@ -25,9 +25,15 @@ export function CategoryDetailPage() {
   const currency = dominantCurrency(mine.filter((e) => e.type === 'income' || e.type === 'expense'))
   const finance = useMemo(() => financeForPeriod(mine, currency, period), [mine, currency, period])
 
-  const stockValue = mine
-    .filter((e) => e.type === 'inventory' && e.currency === currency)
-    .reduce((sum, e) => sum + (e.total ?? 0), 0)
+  const stockValue = useMemo(() => {
+    const purchased = mine
+      .filter((e) => e.type === 'inventory' && e.currency === currency)
+      .reduce((sum, e) => sum + (e.total ?? 0), 0)
+    const consumed = mine
+      .filter((e) => e.isConsumption && e.type === 'expense' && e.currency === currency)
+      .reduce((sum, e) => sum + (e.total ?? 0), 0)
+    return purchased - consumed
+  }, [mine, currency])
 
   const inventory = useMemo(() => {
     const items = new Map<string, InvItem>()
@@ -39,6 +45,15 @@ export function CategoryDetailPage() {
       item.value += e.total ?? 0
       if (!item.unit && e.unit) item.unit = e.unit
       items.set(key, item)
+    }
+    // Subtract consumed-from-stock
+    for (const e of mine) {
+      if (!e.isConsumption || e.type !== 'expense' || e.currency !== currency) continue
+      const key = e.subcategory || e.product || 'Item'
+      const item = items.get(key)
+      if (!item) continue
+      item.qty -= e.quantity ?? 0
+      item.value -= e.total ?? 0
     }
     return [...items.values()]
   }, [mine, currency])

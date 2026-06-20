@@ -34,7 +34,7 @@ export const CATEGORIES: CategoryDef[] = [
     id: 'digital',
     label: 'Digital Projects',
     emoji: '💻',
-    color: '#9C27B0',
+    color: '#00F2EA',
     keywords: ['project', 'proyecto', 'app', 'software', 'domain', 'dominio', 'hosting', 'subscription', 'tally', 'ada', 'smartgrowth', 'dev', 'development'],
     subcategories: ['Tally', 'Ada', 'SmartGrowth'],
   },

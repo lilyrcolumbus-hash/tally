@@ -7,25 +7,54 @@ import { EntryCard } from '@/components/EntryCard'
 import { EditEntrySheet } from '@/components/EditEntrySheet'
 import { cn } from '@/lib/utils'
 
+interface StockProduct {
+  key: string
+  product: string
+  subcategory: string | null
+  unit: string | null
+  netQty: number
+  entries: Entry[]
+}
+
 export function InventoryPage() {
   const { entries, update, remove } = useEntries()
   const [filter, setFilter] = useState('all')
   const [editing, setEditing] = useState<Entry | null>(null)
-
-  const withProduct = useMemo(() => entries.filter((e) => e.type === 'inventory' && e.product && e.product.trim()), [entries])
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const groups = useMemo(() => {
     const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
-    const map = new Map<string, Entry[]>()
-    for (const e of withProduct) {
+    // Build net stock per (category, product)
+    const catMap = new Map<string, Map<string, StockProduct>>()
+    for (const e of entries) {
+      if (e.type !== 'inventory' || !e.product?.trim()) continue
       const cid = normalizeCategoryId(e.category)
       if (filter !== 'all' && cid !== filter) continue
-      const arr = map.get(cid) ?? []
-      arr.push(e)
-      map.set(cid, arr)
+      const prodMap = catMap.get(cid) ?? new Map<string, StockProduct>()
+      const key = `${cid}::${e.product}`
+      const row = prodMap.get(key) ?? { key, product: e.product, subcategory: e.subcategory, unit: e.unit, netQty: 0, entries: [] }
+      row.netQty += e.quantity ?? 0
+      row.entries.push(e)
+      if (!row.unit && e.unit) row.unit = e.unit
+      prodMap.set(key, row)
+      catMap.set(cid, prodMap)
     }
-    return order.filter((id) => map.has(id)).map((id) => ({ id, items: map.get(id) as Entry[] }))
-  }, [withProduct, filter])
+    // Subtract consumptions
+    for (const e of entries) {
+      if (!e.isConsumption || e.type !== 'expense' || !e.product?.trim()) continue
+      const cid = normalizeCategoryId(e.category)
+      if (filter !== 'all' && cid !== filter) continue
+      const prodMap = catMap.get(cid)
+      if (!prodMap) continue
+      const key = `${cid}::${e.product}`
+      const row = prodMap.get(key)
+      if (!row) continue
+      row.netQty -= e.quantity ?? 0
+    }
+    return order
+      .filter((id) => catMap.has(id))
+      .map((id) => ({ id, products: [...(catMap.get(id)!.values())] }))
+  }, [entries, filter])
 
   const handleDelete = async (entry: Entry) => {
     try {
@@ -82,8 +111,29 @@ export function InventoryPage() {
                 {cat.emoji} {cat.label}
               </h2>
               <div className="space-y-2">
-                {g.items.map((e) => (
-                  <EntryCard key={e.id} entry={e} onEdit={setEditing} onDelete={handleDelete} />
+                {g.products.map((p) => (
+                  <div key={p.key}>
+                    <button
+                      className="flex w-full items-center justify-between rounded-2xl border border-ink-800 bg-ink-900/70 px-3 py-3 text-left"
+                      onClick={() => setExpanded((prev) => {
+                        const next = new Set(prev)
+                        next.has(p.key) ? next.delete(p.key) : next.add(p.key)
+                        return next
+                      })}
+                    >
+                      <span className="text-sm font-semibold text-ink-300">{p.product}</span>
+                      <span className="text-sm font-bold text-[#4285F4]">
+                        {Math.round(p.netQty * 1000) / 1000} {p.unit || 'u.'}
+                      </span>
+                    </button>
+                    {expanded.has(p.key) && (
+                      <div className="mt-1 space-y-1 pl-2">
+                        {p.entries.map((e) => (
+                          <EntryCard key={e.id} entry={e} onEdit={setEditing} onDelete={handleDelete} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </section>
