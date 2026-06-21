@@ -29,9 +29,10 @@ export interface ExtractionInput {
 
 function buildPrompt(input: ExtractionInput): string {
   const categoryList = CATEGORIES.map((c) => `${c.id} (${c.label})`).join(', ')
-  return `You extract inventory and spending records for a small-business owner. They speak Spanish or English and may use voice, a receipt photo, or free text.
+  const isPhoto = Boolean(input.image)
+  return `You extract inventory and spending records for a small-business owner. They speak Spanish or English and may use voice, a receipt/invoice/label photo, or free text.
 
-Return ONLY JSON: an array of records. One record per distinct item. A receipt photo can yield many records.
+Return ONLY JSON: an array of records. ONE RECORD PER DISTINCT LINE ITEM. A receipt or invoice photo MUST produce one record for every product line — do not collapse or summarize.${isPhoto ? ' READ EVERY LINE of the image carefully — extract ALL products, do not skip any.' : ''}
 
 Each record:
 - "type":
@@ -51,25 +52,26 @@ Each record:
 - "unitPrice": price per unit, or null.
 - "total": total money for this record. If quantity and unitPrice are given, total = quantity * unitPrice. If they only said a total amount, put it here. Else null.
 - "note": ONLY a genuinely extra remark (in English), or null. NEVER put the unit, quantity or price here. The unit of measure (pounds, lb, kg, liter, box…) ALWAYS goes in "unit", never in "note".
-- "isConsumption": true ONLY for "expense" records that represent the user consuming, eating, using up, discarding, or wasting something from their own stock. Set product/unit/quantity to the amount consumed and total to quantity × unitPrice. Do NOT set for regular purchases, services, or utilities.
+- "isConsumption": true ONLY for "expense" records that represent the user consuming, eating, using up, discarding, or wasting something from their own stock. Do NOT set for regular purchases, services, or utilities.
+- "supplier": the vendor, supplier, or company name exactly as it appears on the document (e.g. "Sysco", "FreshFarm Co.", "Costco"), or null if not visible.
+- "batchId": any batch number, lot number, SKU, invoice number, PO number, or product code visible on the label or document for this line item. Use the most specific identifier (lot/batch over invoice). Null if none.
 
-COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phrase, return TWO records: one "inventory" for the purchase, and one "expense" with isConsumption:true for the consumed portion. The consumed record must have the same product and unitPrice as the purchased one so the app can subtract it from stock.
+COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phrase, return TWO records: one "inventory" for the purchase, and one "expense" with isConsumption:true for the consumed portion.
 
-Currency is ${input.currency}; return plain numbers (no symbols). All text fields (product, subcategory, note) must be in ENGLISH.
+Currency is ${input.currency}; return plain numbers (no symbols). All text fields (product, subcategory, note) must be in ENGLISH. supplier and batchId stay as-is from the document.
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
-Example input: "vendí 3 libras de hongos shiitake a 5 cada una"
-Example output: [{"type":"income","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false}]
-Example input: "una libra de azúcar para la casa"
-Example output: [{"type":"inventory","product":"Sugar","category":"home","subcategory":"Food","quantity":1,"unit":"lb","unitPrice":null,"total":null,"note":null,"isConsumption":false}]
-Example input: "bought 20 lb oyster mushrooms for $80"
-Example output: [{"type":"inventory","product":"Fresh Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false}]
-Example input: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
-Example output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false}]
-Example input: "vendí 50"
-Example output: [{"type":"income","product":null,"category":"","subcategory":null,"quantity":null,"unit":null,"unitPrice":null,"total":50,"note":null,"isConsumption":false}]
-Example input: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
-Example output: [{"type":"inventory","product":"Apple","category":"home","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false},{"type":"expense","product":"Apple","category":"home","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true}]
+Example — receipt photo with 2 line items from supplier "FreshFarm":
+Output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889"},{"type":"inventory","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890"}]
+
+Example: "vendí 3 libras de hongos shiitake a 5 cada una"
+Output: [{"type":"income","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "bought 20 lb oyster mushrooms for $80"
+Output: [{"type":"inventory","product":"Fresh Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
+Output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
+Output: [{"type":"inventory","product":"Apple","category":"home","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null},{"type":"expense","product":"Apple","category":"home","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true,"supplier":null,"batchId":null}]
 
 ${
     input.inventoryContext && input.inventoryContext.length > 0
@@ -89,6 +91,8 @@ interface RawDraft {
   total?: number | null
   note?: string | null
   isConsumption?: boolean
+  supplier?: string | null
+  batchId?: string | null
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -125,7 +129,9 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const unit = normalizeUnit(typeof raw.unit === 'string' && raw.unit.trim() ? raw.unit : null)
   const note = typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null
   const isConsumption = raw.isConsumption === true && type === 'expense'
-  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption }
+  const supplier = typeof raw.supplier === 'string' && raw.supplier.trim() ? raw.supplier.trim() : null
+  const batchId = typeof raw.batchId === 'string' && raw.batchId.trim() ? raw.batchId.trim() : null
+  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption, supplier, batchId }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }

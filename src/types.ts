@@ -27,6 +27,10 @@ export interface Entry {
   lowStockThreshold: number | null
   /** True when this expense represents consuming/using stock (reduces inventory count). */
   isConsumption?: boolean
+  /** Supplier / vendor name (from receipt or label). */
+  supplier?: string | null
+  /** Batch number, lot number, SKU, or invoice ID from the label/receipt. */
+  batchId?: string | null
   createdAt: string
 }
 
@@ -47,6 +51,10 @@ export interface EntryDraft {
   date?: string
   /** True when this expense represents consuming/using stock (reduces inventory count). */
   isConsumption?: boolean
+  /** Supplier / vendor name (from receipt or label). */
+  supplier?: string | null
+  /** Batch number, lot number, SKU, or invoice ID from the label/receipt. */
+  batchId?: string | null
 }
 
 /** Multiple drafts (e.g. a receipt photo with several line items). */

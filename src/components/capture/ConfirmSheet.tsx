@@ -57,6 +57,8 @@ export function ConfirmSheet({
       source,
       lowStockThreshold: d.type === 'inventory' ? (d.lowStockThreshold ?? lowStockDefault) : null,
       isConsumption: d.isConsumption ?? false,
+      supplier: d.supplier ?? null,
+      batchId: d.batchId ?? null,
       createdAt: d.date ? new Date(d.date).toISOString() : nowIso,
     }))
     try {

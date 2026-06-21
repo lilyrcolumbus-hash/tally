@@ -301,6 +301,30 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
         </Field>
       )}
 
+      {/* Supplier + Batch — show for inventory; also visible for any entry that already has them */}
+      {(isInv || draft.supplier || draft.batchId) && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Supplier">
+            <input
+              value={draft.supplier ?? ''}
+              onChange={(e) => onChange({ ...draft, supplier: e.target.value || null })}
+              onFocus={scrollIntoCenter}
+              placeholder="e.g. Sysco, Costco…"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Batch / Lot #">
+            <input
+              value={draft.batchId ?? ''}
+              onChange={(e) => onChange({ ...draft, batchId: e.target.value || null })}
+              onFocus={scrollIntoCenter}
+              placeholder="LOT-001, SKU…"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+      )}
+
       {/* Note */}
       <Field label="Note (optional)">
         <input

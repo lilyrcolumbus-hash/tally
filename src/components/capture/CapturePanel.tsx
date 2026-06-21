@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Mic, Camera, Send, Square, Loader2 } from 'lucide-react'
+import { Mic, Camera, Image, Send, Square, Loader2 } from 'lucide-react'
 import type { Entry, EntryDraft, EntrySource, EntryType } from '@/types'
 import { extractEntries, isGeminiConfigured } from '@/lib/gemini'
 import { useRecorder } from '@/hooks/useRecorder'
 import { useEntries } from '@/contexts/EntriesContext'
 import { loadSettings } from '@/lib/settings'
-import { blobToBase64, cn } from '@/lib/utils'
+import { blobToBase64, imageFileToBase64, cn } from '@/lib/utils'
 import { ConfirmSheet } from '@/components/capture/ConfirmSheet'
 
 function buildInventoryContext(entries: import('@/types').Entry[]): import('@/lib/gemini').InventoryContextItem[] {
@@ -37,7 +37,8 @@ export function CapturePanel() {
   const [source, setSource] = useState<EntrySource>('text')
   const [usedFallback, setUsedFallback] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
 
   const runExtraction = async (
     args: { text?: string; audio?: { base64: string; mimeType: string }; image?: { base64: string; mimeType: string } },
@@ -101,8 +102,9 @@ export function CapturePanel() {
       toast('Receipt photos need the AI key. Type it for now, or add VITE_GEMINI_API_KEY.', { icon: '📸' })
       return
     }
-    const base64 = await blobToBase64(file)
-    await runExtraction({ image: { base64, mimeType: file.type || 'image/jpeg' } }, 'photo')
+    // Resize + convert to JPEG via canvas — normalises HEIC from iOS and keeps payload small
+    const base64 = await imageFileToBase64(file)
+    await runExtraction({ image: { base64, mimeType: 'image/jpeg' } }, 'photo')
   }
 
   const handleConfirm = async (entries: Entry[]) => {
@@ -140,8 +142,8 @@ export function CapturePanel() {
         AI will classify as <span className="text-gold-400">{mode}</span> unless it clearly identifies something else
       </p>
 
-      {/* Voice + photo big buttons */}
-      <div className="mb-3 grid grid-cols-2 gap-3">
+      {/* Voice + photo buttons */}
+      <div className="mb-3 grid grid-cols-3 gap-3">
         <button
           onClick={handleMic}
           disabled={busy}
@@ -152,23 +154,46 @@ export function CapturePanel() {
               : 'border-white/10 bg-white/[0.05] text-ink-300 hover:border-gold-500',
           )}
         >
-          {recorder.isRecording ? <Square size={26} /> : <Mic size={26} />}
-          <span className="text-xs font-medium">{recorder.isRecording ? 'Tap to stop' : 'Speak it'}</span>
+          {recorder.isRecording ? <Square size={24} /> : <Mic size={24} />}
+          <span className="text-xs font-medium">{recorder.isRecording ? 'Stop' : 'Speak'}</span>
         </button>
 
         <button
-          onClick={() => fileRef.current?.click()}
+          onClick={() => cameraRef.current?.click()}
           disabled={busy || recorder.isRecording}
           className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] py-6 text-ink-300 transition-colors hover:border-gold-500 disabled:opacity-50"
         >
-          <Camera size={26} />
-          <span className="text-xs font-medium">Snap receipt</span>
+          <Camera size={24} />
+          <span className="text-xs font-medium">Camera</span>
         </button>
+
+        <button
+          onClick={() => galleryRef.current?.click()}
+          disabled={busy || recorder.isRecording}
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] py-6 text-ink-300 transition-colors hover:border-gold-500 disabled:opacity-50"
+        >
+          <Image size={24} />
+          <span className="text-xs font-medium">Gallery</span>
+        </button>
+
+        {/* Camera: opens directly to camera on mobile */}
         <input
-          ref={fileRef}
+          ref={cameraRef}
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handlePhoto(file)
+            e.target.value = ''
+          }}
+        />
+        {/* Gallery: opens file picker / photo library */}
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]

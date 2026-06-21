@@ -125,3 +125,32 @@ export function blobToBase64(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob)
   })
 }
+
+/**
+ * Resize an image File to at most maxPx on the longest side, then encode as
+ * JPEG base64. This normalises HEIC/HEIF from iOS and keeps payload size
+ * reasonable for the Gemini API without losing legibility for text extraction.
+ */
+export function imageFileToBase64(file: File, maxPx = 1536, quality = 0.92): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight))
+      const w = Math.round(img.naturalWidth * scale)
+      const h = Math.round(img.naturalHeight * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('Canvas not available')); return }
+      ctx.drawImage(img, 0, 0, w, h)
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      const comma = dataUrl.indexOf(',')
+      resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not load image')) }
+    img.src = url
+  })
+}
