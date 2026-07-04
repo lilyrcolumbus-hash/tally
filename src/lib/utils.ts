@@ -45,9 +45,15 @@ export interface FinanceSummary {
   net: number
 }
 
-/** Income, expenses and net profit for one month, in a single currency. */
+/**
+ * Income, expenses and net profit for one month, in a single currency.
+ * Cash-basis: an inventory purchase counts as spend the moment it's bought
+ * (it's money out of pocket, whether or not it's sold yet). Consuming stock
+ * you already bought (isConsumption) is NOT counted again here — that cost
+ * was already recognized at purchase; isConsumption only reduces stock.
+ */
 export function monthlyFinance(
-  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null }>,
+  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null; isConsumption?: boolean }>,
   currency: string,
   month: string,
 ): FinanceSummary {
@@ -56,7 +62,8 @@ export function monthlyFinance(
   for (const e of entries) {
     if (e.currency !== currency || monthKey(e.createdAt) !== month) continue
     if (e.type === 'income') income += e.total ?? 0
-    else if (e.type === 'expense') expense += e.total ?? 0
+    else if (e.type === 'inventory') expense += e.total ?? 0
+    else if (e.type === 'expense' && !e.isConsumption) expense += e.total ?? 0
   }
   return { income, expense, net: income - expense }
 }
@@ -79,8 +86,9 @@ export function inPeriod(iso: string, period: Period): boolean {
   return date >= startOfWeek()
 }
 
+/** Same cash-basis rule as monthlyFinance — see its comment for why isConsumption is excluded. */
 export function financeForPeriod(
-  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null }>,
+  entries: ReadonlyArray<{ currency: string; createdAt: string; type: string; total: number | null; isConsumption?: boolean }>,
   currency: string,
   period: Period,
 ): FinanceSummary {
@@ -89,7 +97,8 @@ export function financeForPeriod(
   for (const e of entries) {
     if (e.currency !== currency || !inPeriod(e.createdAt, period)) continue
     if (e.type === 'income') income += e.total ?? 0
-    else if (e.type === 'expense') expense += e.total ?? 0
+    else if (e.type === 'inventory') expense += e.total ?? 0
+    else if (e.type === 'expense' && !e.isConsumption) expense += e.total ?? 0
   }
   return { income, expense, net: income - expense }
 }

@@ -12,7 +12,10 @@ export function ExpensesPage() {
   const [period, setPeriod] = useState<Period>('month')
   const [filter, setFilter] = useState<string>('all')
 
-  const money = useMemo(() => entries.filter((e) => e.type === 'expense' || e.type === 'income'), [entries])
+  const money = useMemo(
+    () => entries.filter((e) => e.type === 'expense' || e.type === 'income' || e.type === 'inventory'),
+    [entries],
+  )
   const currency = dominantCurrency(money)
 
   const catMoney = filter === 'all' ? money : money.filter((e) => e.category === filter)
@@ -70,7 +73,7 @@ export function ExpensesPage() {
         entries={visible}
         emptyText={
           filter === 'all'
-            ? 'No income or expenses in this period. Add one in 💰 Income or 💸 Expense mode on Home.'
+            ? 'No income, expenses, or inventory purchases in this period. Add one on Home.'
             : `Nothing in ${categoryById(filter).label} for this period.`
         }
       />
