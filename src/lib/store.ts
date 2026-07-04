@@ -141,3 +141,17 @@ export async function removeEntry(entry: Entry): Promise<void> {
   }
   void pushToSheet('delete', entry)
 }
+
+// One-time catch-up: the Sheets webhook was silently broken 2026-06-20 to
+// 2026-07-04 (stale Apps Script deployment), so entries saved during that
+// window never reached the mirror. Resend everything once per device —
+// upsert-by-id makes this safe to replay against rows that already synced.
+const BACKFILL_KEY = 'tally_sheets_backfill_2026_07_04'
+
+export async function backfillSheetsSync(entries: Entry[]): Promise<void> {
+  if (localStorage.getItem(BACKFILL_KEY)) return
+  for (const entry of entries) {
+    await pushToSheet('upsert', entry)
+  }
+  localStorage.setItem(BACKFILL_KEY, new Date().toISOString())
+}

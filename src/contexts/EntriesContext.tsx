@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Entry } from '@/types'
-import { listEntries, addEntry, updateEntry, removeEntry, storageMode, type StorageMode } from '@/lib/store'
+import { listEntries, addEntry, updateEntry, removeEntry, storageMode, backfillSheetsSync, type StorageMode } from '@/lib/store'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface EntriesState {
@@ -34,6 +34,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       if (id !== requestId.current) return // a newer reload superseded this one
       setMode(nextMode)
       setEntries(data)
+      if (nextMode === 'local') void backfillSheetsSync(data)
     } catch (err) {
       if (id !== requestId.current) return
       setError(err instanceof Error ? err.message : 'Could not load your data')
