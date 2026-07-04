@@ -20,7 +20,7 @@ export const CATEGORIES: CategoryDef[] = [
     emoji: '🍄',
     color: '#34A853',
     keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'oyster', 'shiitake', 'reishi', 'lions mane', 'champiñon'],
-    subcategories: ['Oyster', 'Pink Oyster', 'Shiitake', "Lion's Mane", 'Reishi'],
+    subcategories: ['Oyster', 'Pink Oyster', 'Shiitake', "Lion's Mane", 'Reishi', 'Magic'],
   },
   {
     id: 'home',
