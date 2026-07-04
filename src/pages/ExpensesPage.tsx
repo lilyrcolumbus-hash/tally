@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'react'
 import { EntryList } from '@/components/EntryList'
 import { useEntries } from '@/contexts/EntriesContext'
-import { CATEGORIES, categoryById } from '@/config/categories'
-import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period } from '@/lib/utils'
+import { CATEGORIES, MAIN_CATEGORIES, categoryById, normalizeCategoryId, type CategoryDef } from '@/config/categories'
+import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period, type FinanceSummary } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { PeriodToggle } from '@/components/ui/PeriodToggle'
 import { cn } from '@/lib/utils'
+import type { Entry } from '@/types'
+
+interface CategoryGroup {
+  cat: CategoryDef
+  entries: Entry[]
+  finance: FinanceSummary
+}
 
 export function ExpensesPage() {
   const { entries } = useEntries()
@@ -21,6 +28,26 @@ export function ExpensesPage() {
   const catMoney = filter === 'all' ? money : money.filter((e) => e.category === filter)
   const finance = useMemo(() => financeForPeriod(catMoney, currency, period), [catMoney, currency, period])
   const visible = useMemo(() => catMoney.filter((e) => inPeriod(e.createdAt, period)), [catMoney, period])
+
+  // Never mix categories together: when viewing "All", split into one section
+  // per project (each with its own Earned/Spent/Net), instead of one merged list.
+  const groups = useMemo((): CategoryGroup[] => {
+    if (filter !== 'all') return []
+    const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
+    const byId = new Map<string, Entry[]>()
+    for (const e of visible) {
+      const cid = normalizeCategoryId(e.category)
+      const list = byId.get(cid) ?? []
+      list.push(e)
+      byId.set(cid, list)
+    }
+    return order
+      .filter((id) => byId.has(id))
+      .map((id) => {
+        const catEntries = byId.get(id)!
+        return { cat: categoryById(id), entries: catEntries, finance: financeForPeriod(catEntries, currency, period) }
+      })
+  }, [filter, visible, currency, period])
 
   const pills = [{ id: 'all', label: 'All', color: '#fbbf24', emoji: '' }, ...CATEGORIES.filter((c) => c.id !== 'other')]
 
@@ -69,14 +96,38 @@ export function ExpensesPage() {
         </Card>
       </div>
 
-      <EntryList
-        entries={visible}
-        emptyText={
-          filter === 'all'
-            ? 'No income, expenses, or inventory purchases in this period. Add one on Home.'
-            : `Nothing in ${categoryById(filter).label} for this period.`
-        }
-      />
+      {filter === 'all' ? (
+        groups.length === 0 ? (
+          <p className="py-10 text-center text-sm text-ink-600">
+            No income, expenses, or inventory purchases in this period. Add one on Home.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {groups.map((g) => (
+              <section key={g.cat.id}>
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                    {g.cat.emoji} {g.cat.label}
+                  </h2>
+                  <p className="text-xs text-ink-500">
+                    <span className="text-success">{formatCurrency(g.finance.income, currency)}</span>
+                    {' · '}
+                    <span className="text-gold-300">{formatCurrency(g.finance.expense, currency)}</span>
+                    {' · '}
+                    <span className={g.finance.net >= 0 ? 'text-success' : 'text-danger'}>
+                      {g.finance.net >= 0 ? '+' : '−'}
+                      {formatCurrency(Math.abs(g.finance.net), currency)}
+                    </span>
+                  </p>
+                </div>
+                <EntryList entries={g.entries} />
+              </section>
+            ))}
+          </div>
+        )
+      ) : (
+        <EntryList entries={visible} emptyText={`Nothing in ${categoryById(filter).label} for this period.`} />
+      )}
     </div>
   )
 }
