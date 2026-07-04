@@ -41,11 +41,13 @@ Each record:
   • "inventory" — physical goods they HAVE, GREW, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., mushrooms, produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
   The user pre-selected "${input.defaultType}" as the default type — use it when no other type is clearly evident from the text.
 - "subcategory": the PRODUCT FAMILY name IN ENGLISH — the master product these components belong to.
-  • For "inventory": use the product family / brand name (e.g. "Hummingbird Nectar", "Oyster", "Shiitake", "Garden Herbs"). This groups components together.
-  • For "income"/"expense": the product line or project (e.g. "Shiitake" for Mushrooms, "Garden" for Home, "Tally" for Digital), or null.
+  • For category "mushrooms": the CULTIVATION STAGE ONLY (e.g. "Liquid Culture", "Grain Spawn", "Agar", "Fruiting", "Fresh", "Dried") — the stage applies to ANY strain regardless of Magic or Normal. If no stage is mentioned, use null. NEVER put a species/strain name here (Oyster, Shiitake, White Rabbit, Mac Galactic go in "product", not here).
+  • For "inventory" in every other category: use the product family / brand name (e.g. "Hummingbird Nectar", "Garden Herbs"). This groups components together.
+  • For "income"/"expense" outside mushrooms: the product line or project (e.g. "Garden" for Home, "Tally" for Digital), or null.
 - "product": the specific COMPONENT or ITEM IN ENGLISH (translate from Spanish).
-  • For "inventory": the specific component/variant being tracked (e.g. "Bags", "Labels", "Sugar", "Fresh", "Dried", "Seeds", "Jars", "Powder"). If there is no component distinction, use the full product name (same as subcategory).
-  • For "income"/"expense": the item name. Null if they only stated an amount.
+  • For category "mushrooms": the specific SPECIES/STRAIN name (e.g. "Oyster", "Shiitake", "Lion's Mane", "White Rabbit", "Mac Galactic") — this is true whether it's Magic or Normal.
+  • For "inventory" in other categories: the specific component/variant being tracked (e.g. "Bags", "Labels", "Sugar", "Seeds", "Jars", "Powder"). If there is no component distinction, use the full product name (same as subcategory).
+  • For "income"/"expense" outside mushrooms: the item name. Null if they only stated an amount.
 - "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
 - "quantity": number of units, or null.
 - "unit": the unit of measure, normalized to a standard English abbreviation (lb, kg, g, oz, l, ml, box, bag, bottle, pc, doz…). Always translate and normalize: "libras"→"lb", "kilos"→"kg", "gramos"→"g", "cajas"→"box", "litros"→"l". Null if not stated.
@@ -63,12 +65,14 @@ Currency is ${input.currency}; return plain numbers (no symbols). All text field
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
 Example — receipt photo with 2 line items from supplier "FreshFarm":
-Output: [{"type":"inventory","product":"Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889"},{"type":"inventory","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890"}]
+Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889","variant":"Normal"},{"type":"inventory","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890","variant":"Normal"}]
 
 Example: "vendí 3 libras de hongos shiitake a 5 cada una"
-Output: [{"type":"income","product":"Shiitake Mushrooms","category":"mushrooms","subcategory":"Shiitake","quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Output: [{"type":"income","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Normal"}]
 Example: "bought 20 lb oyster mushrooms for $80"
-Output: [{"type":"inventory","product":"Fresh Oyster Mushrooms","category":"mushrooms","subcategory":"Oyster","quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Normal"}]
+Example: "tengo 93 bolsas de liquid culture de mac galactic"
+Output: [{"type":"inventory","product":"Mac Galactic","category":"mushrooms","subcategory":"Liquid Culture","quantity":93,"unit":"bag","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Magic"}]
 Example: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
 Output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
 Example: "compré 3 manzanas a $5 cada una y me comí la mitad de una"

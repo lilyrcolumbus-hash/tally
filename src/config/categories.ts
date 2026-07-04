@@ -22,7 +22,9 @@ export const CATEGORIES: CategoryDef[] = [
     emoji: '🍄',
     color: '#34A853',
     keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'oyster', 'shiitake', 'reishi', 'lions mane', 'champiñon'],
-    subcategories: ['Oyster', 'Pink Oyster', 'Shiitake', "Lion's Mane", 'Reishi', 'Liquid Culture', 'Grain Spawn', 'Agar'],
+    // Cultivation stage — applies to ANY strain, Magic or Normal. Species/strain names
+    // (Oyster, Shiitake, White Rabbit, Mac Galactic…) are NOT stages, they go in "product".
+    subcategories: ['Liquid Culture', 'Grain Spawn', 'Agar', 'Fruiting', 'Fresh', 'Dried'],
     variants: ['Magic', 'Normal'],
   },
   {
