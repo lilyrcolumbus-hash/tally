@@ -31,6 +31,8 @@ export interface Entry {
   supplier?: string | null
   /** Batch number, lot number, SKU, or invoice ID from the label/receipt. */
   batchId?: string | null
+  /** Sub-classification within the family (e.g. Magic/Normal for Mushrooms). Category-specific; null when not applicable. */
+  variant?: string | null
   createdAt: string
 }
 
@@ -55,6 +57,8 @@ export interface EntryDraft {
   supplier?: string | null
   /** Batch number, lot number, SKU, or invoice ID from the label/receipt. */
   batchId?: string | null
+  /** Sub-classification within the family (e.g. Magic/Normal for Mushrooms). Category-specific; null when not applicable. */
+  variant?: string | null
 }
 
 /** Multiple drafts (e.g. a receipt photo with several line items). */

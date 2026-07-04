@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { EntryDraft, EntryType } from '@/types'
-import { CATEGORIES, subcategoriesFor } from '@/config/categories'
+import { CATEGORIES, subcategoriesFor, variantsFor } from '@/config/categories'
 import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEntries } from '@/contexts/EntriesContext'
@@ -52,6 +52,25 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
   }, [entries, draft.subcategory])
 
   const setType = (type: EntryType) => onChange({ ...draft, type })
+
+  // Raw string state so decimal points aren't swallowed mid-typing (e.g. "1." → 1)
+  const [raw, setRaw] = useState<Record<string, string>>({})
+
+  function decimalProps(
+    field: string,
+    draftValue: number | null | undefined,
+    onNumChange: (n: number | null) => void
+  ) {
+    return {
+      inputMode: 'decimal' as const,
+      value: raw[field] !== undefined ? raw[field] : String(draftValue ?? ''),
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        setRaw(r => ({ ...r, [field]: e.target.value }))
+        onNumChange(numOrNull(e.target.value))
+      },
+      onBlur: () => setRaw(r => { const n = { ...r }; delete n[field]; return n }),
+    }
+  }
 
   const recompute = (next: EntryDraft): EntryDraft => {
     if (next.quantity !== null && next.unitPrice !== null) {
@@ -122,6 +141,28 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
               ))}
             </datalist>
           </Field>
+
+          {variantsFor(draft.category).length > 0 && (
+            <Field label="Type">
+              <div className="flex flex-wrap gap-1.5">
+                {variantsFor(draft.category).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => onChange({ ...draft, variant: draft.variant === v ? null : v })}
+                    className={cn(
+                      'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                      draft.variant === v
+                        ? 'border-gold-400 bg-gold-500/15 text-gold-300'
+                        : 'border-ink-700 bg-ink-800 text-ink-400',
+                    )}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
 
           <Field label="Component / Item">
             <input
@@ -233,9 +274,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       <div className="grid grid-cols-2 gap-2">
         <Field label="Quantity">
           <input
-            inputMode="decimal"
-            value={draft.quantity ?? ''}
-            onChange={(e) => onChange(recompute({ ...draft, quantity: numOrNull(e.target.value) }))}
+            {...decimalProps('quantity', draft.quantity, n => onChange(recompute({ ...draft, quantity: n })))}
             onFocus={scrollIntoCenter}
             placeholder="—"
             className={inputClass}
@@ -255,9 +294,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       {/* Unit price */}
       <Field label={`Unit price (${currency})`}>
         <input
-          inputMode="decimal"
-          value={draft.unitPrice ?? ''}
-          onChange={(e) => onChange(recompute({ ...draft, unitPrice: numOrNull(e.target.value) }))}
+          {...decimalProps('unitPrice', draft.unitPrice, n => onChange(recompute({ ...draft, unitPrice: n })))}
           onFocus={scrollIntoCenter}
           placeholder="—"
           className={inputClass}
@@ -267,9 +304,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       {/* Total */}
       <Field label={`Total (${currency})`}>
         <input
-          inputMode="decimal"
-          value={draft.total ?? ''}
-          onChange={(e) => onChange({ ...draft, total: numOrNull(e.target.value) })}
+          {...decimalProps('total', draft.total, n => onChange({ ...draft, total: n }))}
           onFocus={scrollIntoCenter}
           placeholder="—"
           className={cn(inputClass, 'font-semibold text-gold-300')}
@@ -291,9 +326,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       {isInv && (
         <Field label="Low-stock alert (units)">
           <input
-            inputMode="decimal"
-            value={draft.lowStockThreshold ?? ''}
-            onChange={(e) => onChange({ ...draft, lowStockThreshold: numOrNull(e.target.value) })}
+            {...decimalProps('lowStockThreshold', draft.lowStockThreshold, n => onChange({ ...draft, lowStockThreshold: n }))}
             onFocus={scrollIntoCenter}
             placeholder="Alert when stock drops below this number"
             className={inputClass}

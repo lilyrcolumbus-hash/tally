@@ -23,6 +23,11 @@ function toDraft(entry: Entry): EntryDraft {
     total: entry.total,
     note: entry.note,
     date: entry.createdAt.slice(0, 10),
+    lowStockThreshold: entry.lowStockThreshold,
+    isConsumption: entry.isConsumption,
+    supplier: entry.supplier,
+    batchId: entry.batchId,
+    variant: entry.variant,
   }
 }
 
@@ -48,7 +53,11 @@ export function EditEntrySheet({ entry, onSave, onClose }: EditEntrySheetProps) 
       unitPrice: draft.unitPrice,
       total: draft.total,
       note: draft.note,
-      lowStockThreshold: draft.type === 'inventory' ? (entry.lowStockThreshold ?? 3) : null,
+      lowStockThreshold: draft.type === 'inventory' ? (draft.lowStockThreshold ?? entry.lowStockThreshold ?? 3) : null,
+      isConsumption: draft.isConsumption ?? entry.isConsumption,
+      supplier: draft.supplier ?? null,
+      batchId: draft.batchId ?? null,
+      variant: draft.variant ?? null,
       createdAt: draft.date ? new Date(draft.date).toISOString() : entry.createdAt,
     }
     try {

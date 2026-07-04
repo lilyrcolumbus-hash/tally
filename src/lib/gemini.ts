@@ -55,6 +55,7 @@ Each record:
 - "isConsumption": true ONLY for "expense" records that represent the user consuming, eating, using up, discarding, or wasting something from their own stock. Do NOT set for regular purchases, services, or utilities.
 - "supplier": the vendor, supplier, or company name exactly as it appears on the document (e.g. "Sysco", "FreshFarm Co.", "Costco"), or null if not visible.
 - "batchId": any batch number, lot number, SKU, invoice number, PO number, or product code visible on the label or document for this line item. Use the most specific identifier (lot/batch over invoice). Null if none.
+- "variant": ONLY for category "mushrooms" — "Magic" if the specific strain is a psilocybin/magic mushroom (e.g. "White Rabbit", "Mac Galactic", "Blue Magnolia", "Penis Envy", "Golden Teacher" or similar known psilocybin strain names), "Normal" if it's a culinary/gourmet species (Oyster, Shiitake, Lion's Mane, Reishi). Null for every other category, and null if genuinely unsure — never guess.
 
 COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phrase, return TWO records: one "inventory" for the purchase, and one "expense" with isConsumption:true for the consumed portion.
 
@@ -93,6 +94,7 @@ interface RawDraft {
   isConsumption?: boolean
   supplier?: string | null
   batchId?: string | null
+  variant?: string | null
 }
 
 const UNIT_MAP: Record<string, string> = {
@@ -131,7 +133,8 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const isConsumption = raw.isConsumption === true && type === 'expense'
   const supplier = typeof raw.supplier === 'string' && raw.supplier.trim() ? raw.supplier.trim() : null
   const batchId = typeof raw.batchId === 'string' && raw.batchId.trim() ? raw.batchId.trim() : null
-  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption, supplier, batchId }
+  const variant = typeof raw.variant === 'string' && raw.variant.trim() ? raw.variant.trim() : null
+  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption, supplier, batchId, variant }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }

@@ -15,6 +15,7 @@ interface StockComponent {
   netQty: number
   lowStockThreshold: number | null
   isLow: boolean
+  variant: string | null
   entries: Entry[]
 }
 
@@ -27,6 +28,21 @@ interface StockFamily {
 interface CategoryGroup {
   id: string
   families: StockFamily[]
+}
+
+function VariantBadge({ variant }: { variant: string | null }) {
+  if (!variant) return null
+  const isMagic = variant.toLowerCase() === 'magic'
+  return (
+    <span
+      className={cn(
+        'rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
+        isMagic ? 'border-purple-400/50 bg-purple-500/15 text-purple-300' : 'border-ink-700 bg-ink-800 text-ink-500',
+      )}
+    >
+      {variant}
+    </span>
+  )
 }
 
 export function InventoryPage() {
@@ -54,12 +70,13 @@ export function InventoryPage() {
 
       let comp = family.components.find((c) => c.key === compKey)
       if (!comp) {
-        comp = { key: compKey, product: componentName, unit: e.unit, netQty: 0, lowStockThreshold: null, isLow: false, entries: [] }
+        comp = { key: compKey, product: componentName, unit: e.unit, netQty: 0, lowStockThreshold: null, isLow: false, variant: null, entries: [] }
         family.components.push(comp)
       }
       comp.netQty += e.quantity ?? 0
       comp.entries.push(e)
       if (!comp.unit && e.unit) comp.unit = e.unit
+      if (!comp.variant && e.variant) comp.variant = e.variant
       if (e.lowStockThreshold != null) {
         comp.lowStockThreshold =
           comp.lowStockThreshold == null ? e.lowStockThreshold : Math.max(comp.lowStockThreshold, e.lowStockThreshold)
@@ -178,6 +195,7 @@ export function InventoryPage() {
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-ink-300">{comp.product}</span>
+                            <VariantBadge variant={comp.variant} />
                             {comp.isLow && <AlertTriangle size={13} className="text-amber-400" />}
                           </div>
                           <span className={cn('text-sm font-bold', comp.isLow ? 'text-amber-400' : 'text-[#4285F4]')}>
@@ -215,6 +233,7 @@ export function InventoryPage() {
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-ink-300">{comp.product}</span>
+                                <VariantBadge variant={comp.variant} />
                                 {comp.isLow && <AlertTriangle size={12} className="text-amber-400" />}
                               </div>
                               <span className={cn('text-sm font-bold', comp.isLow ? 'text-amber-400' : 'text-[#4285F4]')}>
