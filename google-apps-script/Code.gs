@@ -1,13 +1,14 @@
 // ================================================================
-// TALLY — Google Sheets Backend  v4
-// Formato real de la app: {action:"upsert", entry:{...}}
+// TALLY — Google Sheets Backend  v5
+// App format: {action:"upsert"|"delete"|"status", entry:{...}, token:"..."}
 // category = proyecto (minúsculas), NO hay campo project
 // ================================================================
 
 const SHEET_ID = '12UIZT1Kp_K-kehqxh_7zHXPFnhfuSL2TfJbESewb90o';
 const TOKEN    = 'tally2024';
+const NUM_COLS = 16; // A..P — see entryToRow for the column map
 
-// Mapa de categorías de la app → nombre de proyecto en Sheet
+// Category map from app → project name in Sheet
 const CAT_TO_PROJECT = {
   'mushrooms':       'Mushrooms',
   'mushroom':        'Mushrooms',
@@ -38,10 +39,11 @@ function capitalize(s) {
 }
 
 // ================================================================
-// entryToRow — convierte entry de la app a fila de Record
-// Columnas: A=Date, B=Project, C=Category, D=Subcategory(family),
-//   E=Product(component), F=Type, G=Consumption, H=Qty, I=Unit,
-//   J=UnitPrice, K=Total, L=Note, M=ID
+// entryToRow — converts entry from app to Record row
+// Columns: A=Date, B=Project, C=Category, D=Subcategory(family/stage),
+//   E=Product(component/strain), F=Type(income|expense|inventory),
+//   G=Consumption, H=Qty, I=Unit, J=UnitPrice, K=Total, L=Note, M=ID,
+//   N=Supplier, O=Batch/Lot, P=Variant(Magic/Normal — mushrooms only)
 // ================================================================
 function entryToRow(entry) {
   var tz = Session.getScriptTimeZone();
@@ -59,21 +61,24 @@ function entryToRow(entry) {
     date,                                          // A: Date
     project,                                       // B: Project
     capitalize(entry.category || ''),              // C: Category
-    capitalize(entry.subcategory || ''),           // D: Subcategory (product family)
-    entry.product || '',                           // E: Product (component)
-    type,                                          // F: Type
+    capitalize(entry.subcategory || ''),           // D: Subcategory (family/stage)
+    entry.product || '',                           // E: Product (component/strain)
+    type,                                          // F: Type (income/expense/inventory)
     entry.isConsumption ? 'TRUE' : 'FALSE',        // G: Consumption
     entry.quantity != null ? entry.quantity : '',  // H: Qty
     entry.unit || '',                              // I: Unit
     entry.unitPrice != null ? entry.unitPrice : '',// J: Unit Price
     entry.total != null ? entry.total : '',        // K: Total
     entry.note || '',                              // L: Note
-    entry.id || ''                                 // M: ID
+    entry.id || '',                                // M: ID
+    entry.supplier || '',                          // N: Supplier
+    entry.batchId || '',                           // O: Batch / Lot
+    entry.variant || ''                            // P: Variant (Magic/Normal)
   ];
 }
 
 // ================================================================
-// doPost — recibe datos de la app Tally
+// doPost — receives data from Tally app
 // ================================================================
 function doPost(e) {
   try {
@@ -96,7 +101,7 @@ function doPost(e) {
       var allData = sh.getDataRange().getValues();
       var rows = allData.slice(1).filter(function(r) { return r[0] !== ''; });
       var last5 = rows.slice(-5).map(function(r) {
-        return { date: r[0], project: r[1], product: r[4], type: r[5], id: r[12] };
+        return { date: r[0], project: r[1], product: r[4], type: r[5], variant: r[15], id: r[12] };
       });
       return ContentService
         .createTextOutput(JSON.stringify({ ok: true, totalRows: rows.length, last5: last5 }))
@@ -159,7 +164,7 @@ function doPost(e) {
 // formatSingleRow — colorea una fila según tipo
 // ================================================================
 function formatSingleRow(sh, rowNum, type, isConsumption) {
-  var range = sh.getRange(rowNum, 1, 1, 13);
+  var range = sh.getRange(rowNum, 1, 1, NUM_COLS);
   var bg, fg;
   var isCons = isConsumption === true || isConsumption === 'TRUE';
   if (isCons) {
@@ -184,7 +189,7 @@ function injectEntries(entries) {
 
   var lastRow = sh.getLastRow();
   if (lastRow > 1) {
-    sh.getRange(2, 1, lastRow - 1, 13).clearContent().clearFormat();
+    sh.getRange(2, 1, lastRow - 1, NUM_COLS).clearContent().clearFormat();
   }
 
   if (!entries || entries.length === 0) {
@@ -193,7 +198,7 @@ function injectEntries(entries) {
   }
 
   var rows = entries.map(function(e) { return entryToRow(e); });
-  sh.getRange(2, 1, rows.length, 13).setValues(rows);
+  sh.getRange(2, 1, rows.length, NUM_COLS).setValues(rows);
 
   var bgs = [], fgs = [];
   entries.forEach(function(e) {
@@ -205,10 +210,10 @@ function injectEntries(entries) {
     else if (t==='expense')   { bg='#fee2e2'; fg='#991b1b'; }
     else if (t==='inventory') { bg='#dbeafe'; fg='#1e40af'; }
     else                      { bg='#f8fafc'; fg='#1e293b'; }
-    bgs.push(Array(13).fill(bg));
-    fgs.push(Array(13).fill(fg));
+    bgs.push(Array(NUM_COLS).fill(bg));
+    fgs.push(Array(NUM_COLS).fill(fg));
   });
-  sh.getRange(2, 1, rows.length, 13).setBackgrounds(bgs).setFontColors(fgs);
+  sh.getRange(2, 1, rows.length, NUM_COLS).setBackgrounds(bgs).setFontColors(fgs);
   sh.getRange(2, 10, rows.length, 1).setNumberFormat('$#,##0.00');
   sh.getRange(2, 11, rows.length, 1).setNumberFormat('$#,##0.00');
 
@@ -218,75 +223,89 @@ function injectEntries(entries) {
 
 // ================================================================
 // setupRecord — reconstruye cabeceras y panel de filtros
+// Data: A..P (16 cols). Gap: Q. Filter panel: R..T (18..20).
 // ================================================================
 function setupRecord() {
   var ss  = SpreadsheetApp.openById(SHEET_ID);
   var sh  = ss.getSheetByName('Record');
 
+  // Detect whether this sheet is still on the old 13-column layout (N/O/P used
+  // to hold the filter panel, not real data) — reading 16 cols on an
+  // unmigrated sheet would drag stray filter-panel text into Supplier/Batch/Variant.
+  var alreadyMigrated = sh.getRange(1,16).getValue() === 'Variant';
+  var oldNumCols = alreadyMigrated ? NUM_COLS : 13;
+
   var lastRow = sh.getLastRow();
   var existingData = [];
   if (lastRow >= 2) {
-    existingData = sh.getRange(2, 1, lastRow - 1, 13).getValues()
-      .filter(function(r){ return r[0] !== ''; });
+    existingData = sh.getRange(2, 1, lastRow - 1, oldNumCols).getValues()
+      .filter(function(r){ return r[0] !== ''; })
+      .map(function(r) {
+        r = r.slice();
+        while (r.length < NUM_COLS) r.push('');
+        return r;
+      });
   }
 
   sh.clearContents();
   sh.clearFormats();
   sh.clearNotes();
 
-  if (sh.getMaxColumns() < 17) sh.insertColumnsAfter(sh.getMaxColumns(), 17 - sh.getMaxColumns());
+  if (sh.getMaxColumns() < 20) sh.insertColumnsAfter(sh.getMaxColumns(), 20 - sh.getMaxColumns());
   if (sh.getMaxRows() < 500)   sh.insertRowsAfter(sh.getMaxRows(), 500 - sh.getMaxRows());
 
-  // Cabecera datos (fila 1)
-  var headers = ['Date','Project','Category','Subcategory (Family)','Product (Component)','Type','Consumption','Qty','Unit','Unit Price ($)','Total ($)','Note','ID'];
-  sh.getRange(1,1,1,13).setValues([headers])
+  // Data header (row 1)
+  var headers = ['Date','Project','Category','Subcategory (Family)','Product (Component)','Type','Consumption','Qty','Unit','Unit Price ($)','Total ($)','Note','ID','Supplier','Batch / Lot','Variant'];
+  sh.getRange(1,1,1,NUM_COLS).setValues([headers])
     .setBackground('#1e293b').setFontColor('#f8fafc')
     .setFontWeight('bold').setFontSize(10);
 
-  // Panel filtros (cabecera)
-  sh.getRange(1,15).setValue('🔍 Filter by')
+  // Panel filtros (cabecera) — shifted to R..T (18..20) to leave room for N/O/P data cols
+  sh.getRange(1,18).setValue('🔍 Filter by')
     .setBackground('#334155').setFontColor('#f8fafc').setFontWeight('bold');
-  sh.getRange(1,16).setBackground('#334155');
+  sh.getRange(1,19).setBackground('#334155');
 
-  var labels = [['Proyecto:','',''],['Tipo:','',''],['Categoría:','',''],
-                ['','',''],['📊 TOTAL $:','',''],['📋 Registros:','',''],
-                ['💰 Ingresos:','',''],['🛒 Gastos:','',''],
-                ['📦 Inventario:','',''],['🔥 Consumos:','','']];
-  sh.getRange(2,15,10,3).setValues(labels)
+  var labels = [['Project:','',''],['Type:','',''],['Category:','',''],
+                ['','',''],['📊 TOTAL $:','',''],['📋 Records:','',''],
+                ['💰 Revenue:','',''],['🛒 Expenses:','',''],
+                ['📦 Inventory:','',''],['🔥 Consumption:','','']];
+  sh.getRange(2,18,10,3).setValues(labels)
     .setBackground('#1e293b').setFontColor('#f8fafc').setFontSize(10);
 
-  sh.getRange(2,16).setDataValidation(
+  sh.getRange(2,19).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Mushrooms','Home','LYHOFF','Digital Projects','Other'],true).build()
   ).setValue('(Todos)');
-  sh.getRange(3,16).setDataValidation(
+  sh.getRange(3,19).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Inventory','Expense','Income'],true).build()
   ).setValue('(Todos)');
-  sh.getRange(4,16).setDataValidation(
+  sh.getRange(4,19).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Food','Mushrooms','Seeds','Software','Supplies','Other'],true).build()
   ).setValue('(Todos)');
-  sh.getRange(2,16,3,1).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
+  sh.getRange(2,19,3,1).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
 
   var formulas = [
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(IF(P3="(Todos)",1,F2:F2000=P3))*(IF(P4="(Todos)",1,C2:C2000=P4))*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(IF(P3="(Todos)",1,F2:F2000=P3))*(IF(P4="(Todos)",1,C2:C2000=P4))*(A2:A2000<>""))'],
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(F2:F2000="Income")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(F2:F2000="Expense")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(F2:F2000="Inventory")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
-    ['=SUMPRODUCT((IF(P2="(Todos)",1,B2:B2000=P2))*(G2:G2000=TRUE)*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(IF(S3="(Todos)",1,F2:F2000=S3))*(IF(S4="(Todos)",1,C2:C2000=S4))*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(IF(S3="(Todos)",1,F2:F2000=S3))*(IF(S4="(Todos)",1,C2:C2000=S4))*(A2:A2000<>""))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(F2:F2000="Income")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(F2:F2000="Expense")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(F2:F2000="Inventory")*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
+    ['=SUMPRODUCT((IF(S2="(Todos)",1,B2:B2000=S2))*(G2:G2000=TRUE)*IF(ISNUMBER(K2:K2000),K2:K2000,0))'],
   ];
-  sh.getRange(6,17,6,1).setValues(formulas);
-  sh.getRange(6,17,1,1).setNumberFormat('$#,##0.00');
-  sh.getRange(7,17,1,1).setNumberFormat('#,##0');
-  sh.getRange(8,17,4,1).setNumberFormat('$#,##0.00');
-  sh.getRange(6,17,6,1).setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold');
+  sh.getRange(6,20,6,1).setValues(formulas);
+  sh.getRange(6,20,1,1).setNumberFormat('$#,##0.00');
+  sh.getRange(7,20,1,1).setNumberFormat('#,##0');
+  sh.getRange(8,20,4,1).setNumberFormat('$#,##0.00');
+  sh.getRange(6,20,6,1).setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold');
 
   var dv = SpreadsheetApp.newDataValidation().requireValueInList(['Inventory','Expense','Income'],true).build();
   sh.getRange(2,6,500,1).setDataValidation(dv);
   var dvC = SpreadsheetApp.newDataValidation().requireValueInList(['TRUE','FALSE'],true).build();
   sh.getRange(2,7,500,1).setDataValidation(dvC);
+  var dvV = SpreadsheetApp.newDataValidation().requireValueInList(['','Magic','Normal'],true).build();
+  sh.getRange(2,16,500,1).setDataValidation(dvV);
 
   if (existingData.length > 0) {
-    sh.getRange(2,1,existingData.length,13).setValues(existingData);
+    sh.getRange(2,1,existingData.length,NUM_COLS).setValues(existingData);
     var bgs=[],fgs=[];
     existingData.forEach(function(r){
       var t=(r[5]||'').toLowerCase(), isCons=r[6]==='TRUE'||r[6]===true;
@@ -296,23 +315,23 @@ function setupRecord() {
       else if(t==='expense'){bg='#fee2e2';fg='#991b1b';}
       else if(t==='inventory'){bg='#dbeafe';fg='#1e40af';}
       else{bg='#f8fafc';fg='#1e293b';}
-      bgs.push(Array(13).fill(bg));
-      fgs.push(Array(13).fill(fg));
+      bgs.push(Array(NUM_COLS).fill(bg));
+      fgs.push(Array(NUM_COLS).fill(fg));
     });
-    sh.getRange(2,1,existingData.length,13).setBackgrounds(bgs).setFontColors(fgs);
+    sh.getRange(2,1,existingData.length,NUM_COLS).setBackgrounds(bgs).setFontColors(fgs);
     sh.getRange(2,10,existingData.length,1).setNumberFormat('$#,##0.00');
     sh.getRange(2,11,existingData.length,1).setNumberFormat('$#,##0.00');
   }
 
   sh.setFrozenRows(1);
   sh.setRowHeight(1,30);
-  var widths=[90,110,100,140,160,90,100,50,60,110,90,160,80,20,130,150,110];
+  var widths=[90,110,100,140,160,90,100,50,60,110,90,160,80,120,100,90,20,130,150,110];
   widths.forEach(function(w,i){sh.setColumnWidth(i+1,w);});
 
   try { var f=sh.getFilter(); if(f) f.remove(); } catch(er){}
-  sh.getRange(1,1,1,13).createFilter();
+  sh.getRange(1,1,1,NUM_COLS).createFilter();
 
-  Logger.log('setupRecord OK: ' + existingData.length + ' filas');
+  Logger.log('setupRecord OK: ' + existingData.length + ' rows');
 }
 
 // ================================================================
@@ -323,28 +342,28 @@ function setupProjectSheet(sh, projectName) {
   sh.clearFormats();
   sh.clearNotes();
 
-  if (sh.getMaxColumns() < 14) sh.insertColumnsAfter(sh.getMaxColumns(), 14-sh.getMaxColumns());
+  if (sh.getMaxColumns() < 15) sh.insertColumnsAfter(sh.getMaxColumns(), 15-sh.getMaxColumns());
   if (sh.getMaxRows() < 500)   sh.insertRowsAfter(sh.getMaxRows(), 500-sh.getMaxRows());
 
-  sh.getRange(1,1,1,14).merge()
+  sh.getRange(1,1,1,15).merge()
     .setValue('📊 ' + projectName.toUpperCase() + ' — TALLY CONTROL')
     .setBackground('#1e293b').setFontColor('#f8fafc')
     .setFontSize(14).setFontWeight('bold').setHorizontalAlignment('center');
   sh.setRowHeight(1,36);
 
-  sh.getRange(2,1).setValue('💰 Inventario:').setBackground('#0f172a').setFontColor('#60a5fa').setFontWeight('bold');
+  sh.getRange(2,1).setValue('💰 Inventory:').setBackground('#0f172a').setFontColor('#60a5fa').setFontWeight('bold');
   sh.getRange(2,2).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Inventory")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#60a5fa').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
-  sh.getRange(2,3).setValue('🛒 Gastos:').setBackground('#0f172a').setFontColor('#f87171').setFontWeight('bold');
+  sh.getRange(2,3).setValue('🛒 Expenses:').setBackground('#0f172a').setFontColor('#f87171').setFontWeight('bold');
   sh.getRange(2,4).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Expense")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#f87171').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
-  sh.getRange(2,5).setValue('💵 Ingresos:').setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold');
+  sh.getRange(2,5).setValue('💵 Revenue:').setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold');
   sh.getRange(2,6).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Income")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
-  sh.getRange(2,7).setValue('🔥 Consumos:').setBackground('#0f172a').setFontColor('#fbbf24').setFontWeight('bold');
+  sh.getRange(2,7).setValue('🔥 Consumption:').setBackground('#0f172a').setFontColor('#fbbf24').setFontWeight('bold');
   sh.getRange(2,8).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!G2:G2000=TRUE)*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#fbbf24').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
@@ -352,24 +371,24 @@ function setupProjectSheet(sh, projectName) {
   sh.getRange(2,10).setFormula('=F2-D2')
     .setBackground('#0f172a').setFontColor('#facc15').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
-  sh.getRange(2,1,1,14).setBackground('#0f172a');
+  sh.getRange(2,1,1,15).setBackground('#0f172a');
   sh.setRowHeight(2,28);
 
-  sh.getRange(3,1,1,14).setBackground('#334155');
+  sh.getRange(3,1,1,15).setBackground('#334155');
   sh.getRange(3,1).setValue('  📋 RECORD (auto from Record)').setFontColor('#e2e8f0').setFontWeight('bold');
   sh.setRowHeight(3,24);
 
-  sh.getRange(4,1,1,12).setValues([['Date','Project','Category','Subcategory (Family)','Product (Component)','Type','Consumption','Qty','Unit','Unit Price ($)','Total ($)','Note']])
+  sh.getRange(4,1,1,15).setValues([['Date','Project','Category','Subcategory (Family)','Product (Component)','Type','Consumption','Qty','Unit','Unit Price ($)','Total ($)','Note','Supplier','Batch / Lot','Variant']])
     .setBackground('#334155').setFontColor('#e2e8f0').setFontWeight('bold').setFontSize(9);
   sh.setFrozenRows(4);
 
   sh.getRange(5,1).setFormula(
-    '=IFERROR(QUERY(Record!A2:L2000,"SELECT A,B,C,D,E,F,G,H,I,J,K,L WHERE B=\'' + projectName + '\' ORDER BY A DESC format A \'yyyy-MM-dd\'",0),"Sin datos aún")'
+    '=IFERROR(QUERY(Record!A2:P2000,"SELECT A,B,C,D,E,F,G,H,I,J,K,L,N,O,P WHERE B=\'' + projectName + '\' ORDER BY A DESC format A \'yyyy-MM-dd\'",0),"No data yet")'
   );
   sh.getRange(5,1,500,1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(5,7,500,1).setNumberFormat('@');
 
-  var w=[90,90,100,140,160,90,90,50,60,110,90,150];
+  var w=[90,90,100,140,160,90,90,50,60,110,90,150,110,100,90];
   w.forEach(function(wd,i){sh.setColumnWidth(i+1,wd);});
 }
 
@@ -396,7 +415,7 @@ function setupDashboard() {
     .setBackground('#334155').setFontColor('#94a3b8').setFontSize(10).setHorizontalAlignment('center');
   sh.setRowHeight(2,22);
 
-  var heads=[['Proyecto','Inventario ($)','Gastos ($)','Ingresos ($)','Consumos ($)','Balance Neto ($)','# Entradas','Última Actividad','']];
+  var heads=[['Project','Inventory ($)','Expenses ($)','Revenue ($)','Consumption ($)','Net Balance ($)','# Entries','Last Activity','']];
   sh.getRange(4,1,1,9).setValues(heads)
     .setBackground('#334155').setFontColor('#e2e8f0').setFontWeight('bold').setFontSize(10);
   sh.setRowHeight(4,26);
@@ -441,33 +460,33 @@ function setupDashboard() {
 }
 
 // ================================================================
-// setupInventory — inventario neto por familia + componente
-// D=Subcategory(family), E=Product(component), B=Project, C=Category
+// setupInventory — inventario neto por familia + componente + tipo
+// D=Subcategory(family/stage), E=Product(component/strain), P=Variant,
+// B=Project, C=Category
 // ================================================================
 function setupInventory() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sh = ss.getSheetByName('Inventory');
   if (!sh) return;
   sh.clearContents(); sh.clearFormats();
-  if (sh.getMaxColumns()<10) sh.insertColumnsAfter(sh.getMaxColumns(),10-sh.getMaxColumns());
+  if (sh.getMaxColumns()<11) sh.insertColumnsAfter(sh.getMaxColumns(),11-sh.getMaxColumns());
 
-  sh.getRange(1,1,1,10).merge()
-    .setValue('📦 INVENTARIO NETO — TALLY')
+  sh.getRange(1,1,1,11).merge()
+    .setValue('📦 NET INVENTORY — TALLY')
     .setBackground('#1e293b').setFontColor('#f8fafc')
     .setFontSize(14).setFontWeight('bold').setHorizontalAlignment('center');
   sh.setRowHeight(1,36);
 
-  sh.getRange(2,1,1,6).setValues([['Familia / Producto','Componente','Proyecto','Categoría','Total Inv. ($)','# Entradas']])
+  sh.getRange(2,1,1,7).setValues([['Family / Stage','Component','Type','Project','Category','Total Inv. ($)','# Entries']])
     .setBackground('#334155').setFontColor('#e2e8f0').setFontWeight('bold').setFontSize(10);
   sh.setRowHeight(2,26);
   sh.setFrozenRows(2);
 
-  // D=Subcategory(family), E=Product(component), B=Project, C=Category, K=Total
-  // When subcategory is empty, the family falls back to E (product name)
-  var q = "SELECT IFERROR(D,E), E, B, C, SUM(K), COUNT(A) WHERE F = 'Inventory' AND E <> '' GROUP BY IFERROR(D,E), E, B, C ORDER BY IFERROR(D,E), B, SUM(K) DESC LABEL IFERROR(D,E) 'Familia', SUM(K) 'Total ($)', COUNT(A) '# Entradas'";
-  sh.getRange(3,1).setFormula('=IFERROR(QUERY(Record!A2:K2000,"'+q+'",0),"Sin datos")');
+  // D=Subcategory(family/stage), E=Product(component/strain), P=Variant, B=Project, C=Category, K=Total
+  var q = "SELECT IFERROR(D,E), E, P, B, C, SUM(K), COUNT(A) WHERE F = 'Inventory' AND E <> '' GROUP BY IFERROR(D,E), E, P, B, C ORDER BY IFERROR(D,E), B, SUM(K) DESC LABEL IFERROR(D,E) 'Family', SUM(K) 'Total ($)', COUNT(A) '# Entries'";
+  sh.getRange(3,1).setFormula('=IFERROR(QUERY(Record!A2:P2000,"'+q+'",0),"No data")');
 
-  var w=[170,160,110,100,110,80];
+  var w=[150,150,80,110,100,110,80];
   w.forEach(function(wd,i){sh.setColumnWidth(i+1,wd);});
   Logger.log('setupInventory OK');
 }
@@ -478,7 +497,7 @@ function setupInventory() {
 function setupAllSheets() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var t0 = new Date();
-  Logger.log('🚀 setupAllSheets v4...');
+  Logger.log('🚀 setupAllSheets v5...');
 
   setupRecord();
   Logger.log('  ✅ Record ' + (new Date()-t0)+'ms');
@@ -498,21 +517,21 @@ function setupAllSheets() {
   });
 
   SpreadsheetApp.flush();
-  Logger.log('✅ DONE en ' + (new Date()-t0)+'ms');
+  Logger.log('✅ DONE in ' + (new Date()-t0)+'ms');
 }
 
 // ================================================================
-// masterSetup — configurar todo + cargar datos en un solo paso
+// masterSetup — configure everything + load data in one step
 // ================================================================
 function masterSetup() {
-  Logger.log('🚀 masterSetup: configurar hojas + cargar datos reales...');
+  Logger.log('🚀 masterSetup: configuring sheets + loading data...');
   setupAllSheets();
   SpreadsheetApp.flush();
-  Logger.log('✅ masterSetup COMPLETADO');
+  Logger.log('✅ masterSetup COMPLETED');
 }
 
 // ================================================================
-// testWebhook — probar doPost localmente
+// testWebhook — test doPost locally
 // ================================================================
 function testWebhook() {
   var testEntry = {
@@ -521,14 +540,17 @@ function testWebhook() {
     entry: {
       id: 'test-' + Date.now(),
       type: 'inventory',
-      product: 'Bags',
-      category: 'lyhoff',
-      subcategory: 'Hummingbird Nectar',
+      product: 'Mac Galactic',
+      category: 'mushrooms',
+      subcategory: 'Liquid Culture',
       quantity: 93,
       unit: 'bag',
       unitPrice: null,
       total: null,
       isConsumption: false,
+      supplier: null,
+      batchId: null,
+      variant: 'Magic',
       createdAt: new Date().toISOString()
     }
   };
