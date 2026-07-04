@@ -91,6 +91,18 @@ function doPost(e) {
 
     var ss = SpreadsheetApp.openById(SHEET_ID);
     var sh = ss.getSheetByName('Transactions');
+
+    if (action === 'status') {
+      var allData = sh.getDataRange().getValues();
+      var rows = allData.slice(1).filter(function(r) { return r[0] !== ''; });
+      var last5 = rows.slice(-5).map(function(r) {
+        return { date: r[0], project: r[1], product: r[4], type: r[5], id: r[12] };
+      });
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: true, totalRows: rows.length, last5: last5 }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     var row = entryToRow(entry);
 
     if (action === 'delete') {
