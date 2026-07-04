@@ -38,7 +38,7 @@ function capitalize(s) {
 }
 
 // ================================================================
-// entryToRow — convierte entry de la app a fila de Transactions
+// entryToRow — convierte entry de la app a fila de Record
 // Columnas: A=Date, B=Project, C=Category, D=Subcategory(family),
 //   E=Product(component), F=Type, G=Consumption, H=Qty, I=Unit,
 //   J=UnitPrice, K=Total, L=Note, M=ID
@@ -90,7 +90,7 @@ function doPost(e) {
     }
 
     var ss = SpreadsheetApp.openById(SHEET_ID);
-    var sh = ss.getSheetByName('Transactions');
+    var sh = ss.getSheetByName('Record');
 
     if (action === 'status') {
       var allData = sh.getDataRange().getValues();
@@ -180,7 +180,7 @@ function formatSingleRow(sh, rowNum, type, isConsumption) {
 // ================================================================
 function injectEntries(entries) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sh = ss.getSheetByName('Transactions');
+  var sh = ss.getSheetByName('Record');
 
   var lastRow = sh.getLastRow();
   if (lastRow > 1) {
@@ -217,11 +217,11 @@ function injectEntries(entries) {
 }
 
 // ================================================================
-// setupTransactions — reconstruye cabeceras y panel de filtros
+// setupRecord — reconstruye cabeceras y panel de filtros
 // ================================================================
-function setupTransactions() {
+function setupRecord() {
   var ss  = SpreadsheetApp.openById(SHEET_ID);
-  var sh  = ss.getSheetByName('Transactions');
+  var sh  = ss.getSheetByName('Record');
 
   var lastRow = sh.getLastRow();
   var existingData = [];
@@ -312,7 +312,7 @@ function setupTransactions() {
   try { var f=sh.getFilter(); if(f) f.remove(); } catch(er){}
   sh.getRange(1,1,1,13).createFilter();
 
-  Logger.log('setupTransactions OK: ' + existingData.length + ' filas');
+  Logger.log('setupRecord OK: ' + existingData.length + ' filas');
 }
 
 // ================================================================
@@ -333,19 +333,19 @@ function setupProjectSheet(sh, projectName) {
   sh.setRowHeight(1,36);
 
   sh.getRange(2,1).setValue('💰 Inventario:').setBackground('#0f172a').setFontColor('#60a5fa').setFontWeight('bold');
-  sh.getRange(2,2).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+projectName+'")*(Transactions!F2:F2000="Inventory")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))')
+  sh.getRange(2,2).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Inventory")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#60a5fa').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
   sh.getRange(2,3).setValue('🛒 Gastos:').setBackground('#0f172a').setFontColor('#f87171').setFontWeight('bold');
-  sh.getRange(2,4).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+projectName+'")*(Transactions!F2:F2000="Expense")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))')
+  sh.getRange(2,4).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Expense")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#f87171').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
   sh.getRange(2,5).setValue('💵 Ingresos:').setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold');
-  sh.getRange(2,6).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+projectName+'")*(Transactions!F2:F2000="Income")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))')
+  sh.getRange(2,6).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!F2:F2000="Income")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#4ade80').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
   sh.getRange(2,7).setValue('🔥 Consumos:').setBackground('#0f172a').setFontColor('#fbbf24').setFontWeight('bold');
-  sh.getRange(2,8).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+projectName+'")*(Transactions!G2:G2000=TRUE)*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))')
+  sh.getRange(2,8).setFormula('=SUMPRODUCT((Record!B2:B2000="'+projectName+'")*(Record!G2:G2000=TRUE)*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))')
     .setBackground('#0f172a').setFontColor('#fbbf24').setFontWeight('bold').setNumberFormat('$#,##0.00');
 
   sh.getRange(2,9).setValue('📈 Balance:').setBackground('#0f172a').setFontColor('#e2e8f0').setFontWeight('bold');
@@ -356,7 +356,7 @@ function setupProjectSheet(sh, projectName) {
   sh.setRowHeight(2,28);
 
   sh.getRange(3,1,1,14).setBackground('#334155');
-  sh.getRange(3,1).setValue('  📋 TRANSACCIONES (auto desde Transactions)').setFontColor('#e2e8f0').setFontWeight('bold');
+  sh.getRange(3,1).setValue('  📋 RECORD (auto from Record)').setFontColor('#e2e8f0').setFontWeight('bold');
   sh.setRowHeight(3,24);
 
   sh.getRange(4,1,1,12).setValues([['Date','Project','Category','Subcategory (Family)','Product (Component)','Type','Consumption','Qty','Unit','Unit Price ($)','Total ($)','Note']])
@@ -364,7 +364,7 @@ function setupProjectSheet(sh, projectName) {
   sh.setFrozenRows(4);
 
   sh.getRange(5,1).setFormula(
-    '=IFERROR(QUERY(Transactions!A2:L2000,"SELECT A,B,C,D,E,F,G,H,I,J,K,L WHERE B=\'' + projectName + '\' ORDER BY A DESC format A \'yyyy-MM-dd\'",0),"Sin datos aún")'
+    '=IFERROR(QUERY(Record!A2:L2000,"SELECT A,B,C,D,E,F,G,H,I,J,K,L WHERE B=\'' + projectName + '\' ORDER BY A DESC format A \'yyyy-MM-dd\'",0),"Sin datos aún")'
   );
   sh.getRange(5,1,500,1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(5,7,500,1).setNumberFormat('@');
@@ -392,7 +392,7 @@ function setupDashboard() {
   sh.setRowHeight(1,40);
 
   sh.getRange(2,1,1,9).merge()
-    .setValue('Actualizado automáticamente desde Transactions')
+    .setValue('Actualizado automáticamente desde Record')
     .setBackground('#334155').setFontColor('#94a3b8').setFontSize(10).setHorizontalAlignment('center');
   sh.setRowHeight(2,22);
 
@@ -413,13 +413,13 @@ function setupDashboard() {
   projects.forEach(function(p,i){
     var row=5+i, proj=p[1], bg=p[2];
     sh.getRange(row,1).setValue(p[0]).setFontWeight('bold');
-    sh.getRange(row,2).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+proj+'")*(Transactions!F2:F2000="Inventory")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))').setNumberFormat('$#,##0.00');
-    sh.getRange(row,3).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+proj+'")*(Transactions!F2:F2000="Expense")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))').setNumberFormat('$#,##0.00');
-    sh.getRange(row,4).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+proj+'")*(Transactions!F2:F2000="Income")*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))').setNumberFormat('$#,##0.00');
-    sh.getRange(row,5).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+proj+'")*(Transactions!G2:G2000=TRUE)*IF(ISNUMBER(Transactions!K2:K2000),Transactions!K2:K2000,0))').setNumberFormat('$#,##0.00');
+    sh.getRange(row,2).setFormula('=SUMPRODUCT((Record!B2:B2000="'+proj+'")*(Record!F2:F2000="Inventory")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))').setNumberFormat('$#,##0.00');
+    sh.getRange(row,3).setFormula('=SUMPRODUCT((Record!B2:B2000="'+proj+'")*(Record!F2:F2000="Expense")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))').setNumberFormat('$#,##0.00');
+    sh.getRange(row,4).setFormula('=SUMPRODUCT((Record!B2:B2000="'+proj+'")*(Record!F2:F2000="Income")*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))').setNumberFormat('$#,##0.00');
+    sh.getRange(row,5).setFormula('=SUMPRODUCT((Record!B2:B2000="'+proj+'")*(Record!G2:G2000=TRUE)*IF(ISNUMBER(Record!K2:K2000),Record!K2:K2000,0))').setNumberFormat('$#,##0.00');
     sh.getRange(row,6).setFormula('=D'+row+'-C'+row).setNumberFormat('$#,##0.00').setFontWeight('bold');
-    sh.getRange(row,7).setFormula('=SUMPRODUCT((Transactions!B2:B2000="'+proj+'")*(Transactions!A2:A2000<>""))');
-    sh.getRange(row,8).setFormula('=IFERROR(TEXT(MAXIFS(Transactions!A2:A2000,Transactions!B2:B2000,"'+proj+'"),"yyyy-MM-dd"),"—")');
+    sh.getRange(row,7).setFormula('=SUMPRODUCT((Record!B2:B2000="'+proj+'")*(Record!A2:A2000<>""))');
+    sh.getRange(row,8).setFormula('=IFERROR(TEXT(MAXIFS(Record!A2:A2000,Record!B2:B2000,"'+proj+'"),"yyyy-MM-dd"),"—")');
     sh.getRange(row,1,1,8).setBackground(bg).setFontColor('#1e293b').setFontSize(10);
     sh.setRowHeight(row,28);
   });
@@ -465,7 +465,7 @@ function setupInventory() {
   // D=Subcategory(family), E=Product(component), B=Project, C=Category, K=Total
   // When subcategory is empty, the family falls back to E (product name)
   var q = "SELECT IFERROR(D,E), E, B, C, SUM(K), COUNT(A) WHERE F = 'Inventory' AND E <> '' GROUP BY IFERROR(D,E), E, B, C ORDER BY IFERROR(D,E), B, SUM(K) DESC LABEL IFERROR(D,E) 'Familia', SUM(K) 'Total ($)', COUNT(A) '# Entradas'";
-  sh.getRange(3,1).setFormula('=IFERROR(QUERY(Transactions!A2:K2000,"'+q+'",0),"Sin datos")');
+  sh.getRange(3,1).setFormula('=IFERROR(QUERY(Record!A2:K2000,"'+q+'",0),"Sin datos")');
 
   var w=[170,160,110,100,110,80];
   w.forEach(function(wd,i){sh.setColumnWidth(i+1,wd);});
@@ -480,8 +480,8 @@ function setupAllSheets() {
   var t0 = new Date();
   Logger.log('🚀 setupAllSheets v4...');
 
-  setupTransactions();
-  Logger.log('  ✅ Transactions ' + (new Date()-t0)+'ms');
+  setupRecord();
+  Logger.log('  ✅ Record ' + (new Date()-t0)+'ms');
 
   setupDashboard();
   Logger.log('  ✅ Dashboard ' + (new Date()-t0)+'ms');
