@@ -17,7 +17,7 @@ export function Shell() {
 
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/[0.08] bg-[#0a0a14]/70 px-4 py-3 backdrop-blur-lg">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/[0.08] bg-[#0a0a14]/70 px-4 pb-3 backdrop-blur-lg [padding-top:calc(0.75rem+env(safe-area-inset-top))]">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-1.5 text-lg font-extrabold tracking-tight text-ink-300">
             {isHome && <span className="text-xl leading-none text-gold-400">卌</span>}
