@@ -1,7 +1,7 @@
 import type { Entry } from '@/types'
 import { normalizeCategoryId } from '@/config/categories'
 import { getSupabase } from '@/lib/supabase'
-import { pushToSheet } from '@/lib/sheets'
+import { pushToSheet, pushToSheetChecked } from '@/lib/sheets'
 
 const LS_KEY = 'tally_entries'
 
@@ -143,15 +143,19 @@ export async function removeEntry(entry: Entry): Promise<void> {
 }
 
 // One-time catch-up: the Sheets webhook was silently broken 2026-06-20 to
-// 2026-07-04 (stale Apps Script deployment), so entries saved during that
-// window never reached the mirror. Resend everything once per device —
-// upsert-by-id makes this safe to replay against rows that already synced.
-const BACKFILL_KEY = 'tally_sheets_backfill_2026_07_04'
+// 2026-07-04 (stale Apps Script deployment + missing auth token), so entries
+// saved during that window never reached the mirror. Resend everything once
+// per device — upsert-by-id makes this safe to replay against rows that
+// already synced. Only marks itself done once Google actually confirms every
+// row, so a device that ran this before the token was fixed will retry.
+const BACKFILL_KEY = 'tally_sheets_backfill_2026_07_04_v2'
 
 export async function backfillSheetsSync(entries: Entry[]): Promise<void> {
   if (localStorage.getItem(BACKFILL_KEY)) return
+  let allOk = true
   for (const entry of entries) {
-    await pushToSheet('upsert', entry)
+    const ok = await pushToSheetChecked('upsert', entry)
+    if (!ok) allOk = false
   }
-  localStorage.setItem(BACKFILL_KEY, new Date().toISOString())
+  if (allOk) localStorage.setItem(BACKFILL_KEY, new Date().toISOString())
 }
