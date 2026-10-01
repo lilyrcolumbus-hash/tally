@@ -4,13 +4,36 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { useEntries } from '@/contexts/EntriesContext'
-import { normalizeCategoryId } from '@/config/categories'
+import { DEFAULT_CATEGORY_ID, type CategoryDef } from '@/config/categories'
+import { useCategories, normalizeCategoryId, addCategory, updateCategory, removeCategory } from '@/lib/categoryStore'
 import { loadSettings, saveSettings } from '@/lib/settings'
+import { cn } from '@/lib/utils'
 import { isGeminiConfigured } from '@/lib/gemini'
 import { isSheetsConfigured } from '@/lib/sheets'
-import { HardDrive, Sparkles, Sheet as SheetIcon, Check, X, Trash2, Download, AlertTriangle } from 'lucide-react'
+import {
+  HardDrive,
+  Sparkles,
+  Sheet as SheetIcon,
+  Check,
+  X,
+  Trash2,
+  Download,
+  AlertTriangle,
+  Pencil,
+  Plus,
+} from 'lucide-react'
 
 const DELETE_ALL_CONFIRM_WORD = 'DELETE'
+
+const SWATCHES = ['#34A853', '#4285F4', '#00F2EA', '#F9AB00', '#EA4335', '#9C27B0', '#9aa0a6']
+
+interface CategoryFormState {
+  label: string
+  emoji: string
+  color: string
+}
+
+const BLANK_CATEGORY_FORM: CategoryFormState = { label: '', emoji: '🔵', color: SWATCHES[0] }
 
 const CURRENCIES = ['USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'GBP', 'BRL']
 
@@ -29,13 +52,46 @@ function StatusRow({ ok, label, on, off }: { ok: boolean; label: React.ReactNode
 export function SettingsPage() {
   const [settings, setSettings] = useState(loadSettings())
   const { entries, remove } = useEntries()
+  const categories = useCategories()
   const [clearing, setClearing] = useState(false)
   const [showDeleteAll, setShowDeleteAll] = useState(false)
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('')
   const [deletingAll, setDeletingAll] = useState(false)
   const [showClearOther, setShowClearOther] = useState(false)
+  const [categoryForm, setCategoryForm] = useState<CategoryFormState | null>(null)
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [deletingCategory, setDeletingCategory] = useState<CategoryDef | null>(null)
 
   const otherEntries = entries.filter((e) => normalizeCategoryId(e.category) === 'other')
+
+  const openAddCategory = () => {
+    setEditingCategoryId(null)
+    setCategoryForm({ ...BLANK_CATEGORY_FORM })
+  }
+
+  const openEditCategory = (cat: CategoryDef) => {
+    setEditingCategoryId(cat.id)
+    setCategoryForm({ label: cat.label, emoji: cat.emoji, color: cat.color })
+  }
+
+  const handleSaveCategory = () => {
+    if (!categoryForm || !categoryForm.label.trim()) return
+    if (editingCategoryId) {
+      updateCategory(editingCategoryId, categoryForm)
+    } else {
+      addCategory(categoryForm)
+    }
+    setCategoryForm(null)
+    setEditingCategoryId(null)
+  }
+
+  const handleDeleteCategory = () => {
+    if (!deletingCategory) return
+    removeCategory(deletingCategory.id)
+    setDeletingCategory(null)
+  }
+
+  const entryCountFor = (categoryId: string) => entries.filter((e) => e.category === categoryId).length
 
   const updateSettings = (patch: Partial<typeof settings>) => {
     const next = { ...settings, ...patch }
@@ -148,6 +204,121 @@ export function SettingsPage() {
             : 'Everything you add is saved on this device.'}
         </p>
       </Card>
+
+      {/* Categories */}
+      <Card className="px-4 py-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-bold text-ink-300">Categories</h2>
+          <Button variant="secondary" onClick={openAddCategory}>
+            <Plus size={14} />
+            Add
+          </Button>
+        </div>
+        <p className="mb-3 text-xs text-ink-500">
+          Add, rename or remove the projects you track against. Entries in a removed category move to “Other”.
+        </p>
+        <div className="space-y-1">
+          {categories.map((cat) => (
+            <div key={cat.id} className="flex items-center justify-between rounded-xl bg-ink-800/60 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm text-ink-300">
+                <span>{cat.emoji}</span>
+                {cat.label}
+              </span>
+              <div className="flex items-center gap-1 text-ink-500">
+                <button
+                  onClick={() => openEditCategory(cat)}
+                  aria-label={`Edit ${cat.label}`}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg hover:text-cyan-300 active:bg-white/5"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={() => setDeletingCategory(cat)}
+                  disabled={cat.id === DEFAULT_CATEGORY_ID}
+                  aria-label={`Delete ${cat.label}`}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg hover:text-danger active:bg-white/5 disabled:opacity-30 disabled:hover:text-ink-500"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Sheet
+        open={categoryForm !== null}
+        title={editingCategoryId ? 'Edit category' : 'Add category'}
+        onClose={() => setCategoryForm(null)}
+      >
+        {categoryForm && (
+          <>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-xs font-medium text-ink-400">Name</span>
+              <input
+                autoFocus
+                value={categoryForm.label}
+                onChange={(e) => setCategoryForm({ ...categoryForm, label: e.target.value })}
+                placeholder="e.g. Freelance, Garden, Side Hustle…"
+                className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-ink-300 outline-none focus:border-gold-500"
+              />
+            </label>
+            <label className="mb-3 block">
+              <span className="mb-1 block text-xs font-medium text-ink-400">Emoji</span>
+              <input
+                value={categoryForm.emoji}
+                onChange={(e) => setCategoryForm({ ...categoryForm, emoji: e.target.value })}
+                maxLength={4}
+                className="w-20 rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-center text-lg outline-none focus:border-gold-500"
+              />
+            </label>
+            <div className="mb-4">
+              <span className="mb-1 block text-xs font-medium text-ink-400">Color</span>
+              <div className="flex gap-2">
+                {SWATCHES.map((hex) => (
+                  <button
+                    key={hex}
+                    onClick={() => setCategoryForm({ ...categoryForm, color: hex })}
+                    aria-label={hex}
+                    className={cn(
+                      'h-8 w-8 rounded-full border-2',
+                      categoryForm.color === hex ? 'border-white' : 'border-transparent',
+                    )}
+                    style={{ background: hex }}
+                  />
+                ))}
+              </div>
+            </div>
+            <Button className="w-full" disabled={!categoryForm.label.trim()} onClick={handleSaveCategory}>
+              <Check size={15} />
+              {editingCategoryId ? 'Save changes' : 'Add category'}
+            </Button>
+          </>
+        )}
+      </Sheet>
+
+      <Sheet open={deletingCategory !== null} title="Remove category?" onClose={() => setDeletingCategory(null)}>
+        {deletingCategory && (
+          <>
+            <p className="mb-4 text-sm text-ink-300">
+              {entryCountFor(deletingCategory.id) > 0
+                ? `${entryCountFor(deletingCategory.id)} ${
+                    entryCountFor(deletingCategory.id) === 1 ? 'entry' : 'entries'
+                  } in “${deletingCategory.label}” will move to “Other”.`
+                : `Removes “${deletingCategory.label}”. No entries use it yet.`}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setDeletingCategory(null)}>
+                Cancel
+              </Button>
+              <Button variant="danger" className="flex-1" onClick={handleDeleteCategory}>
+                <Trash2 size={15} />
+                Remove
+              </Button>
+            </div>
+          </>
+        )}
+      </Sheet>
 
       {/* Backup */}
       <Card className="px-4 py-4">

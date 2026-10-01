@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { EntryList } from '@/components/EntryList'
 import { useEntries } from '@/contexts/EntriesContext'
-import { CATEGORIES, MAIN_CATEGORIES, categoryById, normalizeCategoryId, type CategoryDef } from '@/config/categories'
+import type { CategoryDef } from '@/config/categories'
+import { getCategories, getMainCategories, categoryById, normalizeCategoryId } from '@/lib/categoryStore'
 import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period, type FinanceSummary } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { PeriodToggle } from '@/components/ui/PeriodToggle'
@@ -33,7 +34,7 @@ export function ExpensesPage() {
   // per project (each with its own Earned/Spent/Net), instead of one merged list.
   const groups = useMemo((): CategoryGroup[] => {
     if (filter !== 'all') return []
-    const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
+    const order = [...getMainCategories().map((c) => c.id), 'other']
     const byId = new Map<string, Entry[]>()
     for (const e of visible) {
       const cid = normalizeCategoryId(e.category)
@@ -49,7 +50,7 @@ export function ExpensesPage() {
       })
   }, [filter, visible, currency, period])
 
-  const pills = [{ id: 'all', label: 'All', color: '#fbbf24', emoji: '' }, ...CATEGORIES.filter((c) => c.id !== 'other')]
+  const pills = [{ id: 'all', label: 'All', color: '#fbbf24', emoji: '' }, ...getCategories().filter((c) => c.id !== 'other')]
 
   return (
     <div className="space-y-4">

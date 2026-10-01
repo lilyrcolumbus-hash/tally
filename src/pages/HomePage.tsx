@@ -4,7 +4,7 @@ import { CapturePanel } from '@/components/capture/CapturePanel'
 import { EntryList } from '@/components/EntryList'
 import { Card } from '@/components/ui/Card'
 import { useEntries } from '@/contexts/EntriesContext'
-import { MAIN_CATEGORIES, normalizeCategoryId, categoryById } from '@/config/categories'
+import { getMainCategories, normalizeCategoryId, categoryById } from '@/lib/categoryStore'
 import { dominantCurrency, financeForPeriod, formatCurrency } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
@@ -18,7 +18,7 @@ export function HomePage() {
   )
 
   const perCategory = useMemo(() => {
-    const result = MAIN_CATEGORIES.map((c) => {
+    const result = getMainCategories().map((c) => {
       const mine = entries.filter((e) => normalizeCategoryId(e.category) === c.id)
       return { cat: c, ...financeForPeriod(mine, currency, 'month') }
     })

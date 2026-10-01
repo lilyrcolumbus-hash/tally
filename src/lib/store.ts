@@ -1,5 +1,5 @@
 import type { Entry } from '@/types'
-import { normalizeCategoryId } from '@/config/categories'
+import { normalizeCategoryId } from '@/lib/categoryStore'
 import { getSupabase } from '@/lib/supabase'
 import { pushToSheet, pushToSheetChecked } from '@/lib/sheets'
 import { normalizeUnit } from '@/lib/utils'

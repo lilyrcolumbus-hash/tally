@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { EntryDraft, EntryType } from '@/types'
-import { CATEGORIES, subcategoriesFor } from '@/config/categories'
+import { useCategories, subcategoriesFor } from '@/lib/categoryStore'
 import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEntries } from '@/contexts/EntriesContext'
@@ -23,6 +23,7 @@ function scrollIntoCenter(e: React.FocusEvent<HTMLInputElement>) {
 
 export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
   const { entries } = useEntries()
+  const categories = useCategories()
   const isInv = draft.type === 'inventory'
 
   // Known product families (subcategories + products as fallback) for datalist
@@ -33,11 +34,11 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
       if (e.product?.trim()) set.add(e.product.trim())
     }
     // Also add preset subcategories from categories config
-    for (const c of CATEGORIES) {
+    for (const c of categories) {
       for (const s of c.subcategories) set.add(s)
     }
     return [...set].sort()
-  }, [entries])
+  }, [entries, categories])
 
   // Known components for the current family
   const knownComponents = useMemo(() => {
@@ -188,7 +189,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
           {!draft.category && <span className="font-semibold text-gold-400">· which one?</span>}
         </span>
         <div className="flex flex-wrap gap-1.5">
-          {CATEGORIES.map((c) => {
+          {categories.map((c) => {
             const active = draft.category === c.id
             return (
               <button

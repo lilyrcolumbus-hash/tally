@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { AlertTriangle } from 'lucide-react'
 import type { Entry } from '@/types'
 import { useEntries } from '@/contexts/EntriesContext'
-import { MAIN_CATEGORIES, categoryById, normalizeCategoryId } from '@/config/categories'
+import { getMainCategories, categoryById, normalizeCategoryId } from '@/lib/categoryStore'
 import { EntryCard } from '@/components/EntryCard'
 import { EditEntrySheet } from '@/components/EditEntrySheet'
 import { cn } from '@/lib/utils'
@@ -37,7 +37,7 @@ export function InventoryPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const groups = useMemo((): CategoryGroup[] => {
-    const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
+    const order = [...getMainCategories().map((c) => c.id), 'other']
     const normalizedEntries = entries.map((e) => ({ ...e, category: normalizeCategoryId(e.category) }))
     const stock = computeStock(normalizedEntries, { category: filter })
     const catMap = new Map<string, Map<string, StockFamily>>()
@@ -92,7 +92,7 @@ export function InventoryPage() {
     }
   }
 
-  const pills = [{ id: 'all', label: 'All', color: '#F9AB00', emoji: '' }, ...MAIN_CATEGORIES]
+  const pills = [{ id: 'all', label: 'All', color: '#F9AB00', emoji: '' }, ...getMainCategories()]
 
   return (
     <div className="space-y-4">

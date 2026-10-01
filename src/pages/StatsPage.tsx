@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useEntries } from '@/contexts/EntriesContext'
-import { categoryById, normalizeCategoryId } from '@/config/categories'
+import { categoryById, normalizeCategoryId } from '@/lib/categoryStore'
 import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period } from '@/lib/utils'
 import { computeStock } from '@/lib/stock'
 import { Card } from '@/components/ui/Card'

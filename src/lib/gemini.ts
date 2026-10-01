@@ -1,5 +1,6 @@
 import type { EntryDraft, EntryType, ExtractionResult } from '@/types'
-import { CATEGORIES, DEFAULT_CATEGORY_ID } from '@/config/categories'
+import { DEFAULT_CATEGORY_ID } from '@/config/categories'
+import { getCategories } from '@/lib/categoryStore'
 import { normalizeUnit } from '@/lib/utils'
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
@@ -29,7 +30,7 @@ export interface ExtractionInput {
 }
 
 function buildPrompt(input: ExtractionInput): string {
-  const categoryList = CATEGORIES.map((c) => `${c.id} (${c.label})`).join(', ')
+  const categoryList = getCategories().map((c) => `${c.id} (${c.label})`).join(', ')
   const isPhoto = Boolean(input.image)
   return `You extract inventory and spending records for a small-business owner. They speak Spanish or English and may use voice, a receipt/invoice/label photo, or free text.
 
@@ -105,7 +106,7 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const validTypes: EntryType[] = ['inventory', 'expense', 'income']
   const type: EntryType = validTypes.includes(raw.type as EntryType) ? (raw.type as EntryType) : fallbackType
   // Empty string when the AI is unsure — the confirm screen then asks the user.
-  const category = CATEGORIES.some((c) => c.id === raw.category) ? (raw.category as string) : ''
+  const category = getCategories().some((c) => c.id === raw.category) ? (raw.category as string) : ''
   const quantity = typeof raw.quantity === 'number' ? raw.quantity : null
   const unitPrice = typeof raw.unitPrice === 'number' ? raw.unitPrice : null
   let total = typeof raw.total === 'number' ? raw.total : null
@@ -265,7 +266,7 @@ export function fallbackParse(input: ExtractionInput): EntryDraft {
 }
 
 function guessCategory(lower: string): string {
-  for (const cat of CATEGORIES) {
+  for (const cat of getCategories()) {
     if (cat.keywords.some((k) => lower.includes(k))) return cat.id
   }
   return DEFAULT_CATEGORY_ID

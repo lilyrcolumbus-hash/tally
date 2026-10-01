@@ -1,5 +1,7 @@
-// Top-level categories ("projects"). Each has suggested subcategories (product lines).
-// Used to drive the AI prompt, the confirm chips, and the offline fallback classifier.
+// Default top-level categories ("projects"), seeded into local storage on
+// first run. From then on the live, user-editable list lives in
+// @/lib/categoryStore — this file only defines the shape and the starting
+// set. Users can add, rename and remove their own categories in Settings.
 
 export interface CategoryDef {
   id: string
@@ -13,7 +15,7 @@ export interface CategoryDef {
   subcategories: string[]
 }
 
-export const CATEGORIES: CategoryDef[] = [
+export const DEFAULT_CATEGORIES: CategoryDef[] = [
   {
     id: 'mushrooms',
     label: 'Mushrooms',
@@ -59,19 +61,3 @@ export const CATEGORIES: CategoryDef[] = [
 ]
 
 export const DEFAULT_CATEGORY_ID = 'other'
-
-export function categoryById(id: string): CategoryDef {
-  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1]
-}
-
-export function subcategoriesFor(categoryId: string): string[] {
-  return CATEGORIES.find((c) => c.id === categoryId)?.subcategories ?? []
-}
-
-/** Collapse unknown / legacy category ids (food, supplies…) into 'other'. */
-export function normalizeCategoryId(id: string): string {
-  return CATEGORIES.some((c) => c.id === id) ? id : 'other'
-}
-
-/** The 4 main project categories (excludes 'other'), for dashboards/grids. */
-export const MAIN_CATEGORIES = CATEGORIES.filter((c) => c.id !== 'other')

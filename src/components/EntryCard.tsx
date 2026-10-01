@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Entry } from '@/types'
-import { categoryById } from '@/config/categories'
+import { categoryById } from '@/lib/categoryStore'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { AlertTriangle, Pencil, Trash2, TrendingUp, TrendingDown, Package, UtensilsCrossed } from 'lucide-react'
 
