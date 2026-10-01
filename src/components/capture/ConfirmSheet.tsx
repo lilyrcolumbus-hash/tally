@@ -59,7 +59,6 @@ export function ConfirmSheet({
       isConsumption: d.isConsumption ?? false,
       supplier: d.supplier ?? null,
       batchId: d.batchId ?? null,
-      variant: d.variant ?? null,
       createdAt: d.date ? new Date(d.date).toISOString() : nowIso,
     }))
     try {

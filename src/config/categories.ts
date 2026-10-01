@@ -11,8 +11,6 @@ export interface CategoryDef {
   keywords: string[]
   /** Suggested subcategories / product lines (the user can also type a custom one). */
   subcategories: string[]
-  /** Optional sub-classification shown alongside subcategory (e.g. Magic/Normal for Mushrooms). Empty = not used for this category. */
-  variants?: string[]
 }
 
 export const CATEGORIES: CategoryDef[] = [
@@ -22,10 +20,9 @@ export const CATEGORIES: CategoryDef[] = [
     emoji: '🍄',
     color: '#34A853',
     keywords: ['mushroom', 'mushrooms', 'hongo', 'hongos', 'seta', 'setas', 'oyster', 'shiitake', 'reishi', 'lions mane', 'champiñon'],
-    // Cultivation stage — applies to ANY strain, Magic or Normal. Species/strain names
-    // (Oyster, Shiitake, White Rabbit, Mac Galactic…) are NOT stages, they go in "product".
+    // Cultivation stage — applies to any strain. Species/strain names (Oyster,
+    // Shiitake…) are NOT stages, they go in "product".
     subcategories: ['Liquid Culture', 'Grain Spawn', 'Agar', 'Fruiting', 'Fresh', 'Dried'],
-    variants: ['Magic', 'Normal'],
   },
   {
     id: 'home',
@@ -69,10 +66,6 @@ export function categoryById(id: string): CategoryDef {
 
 export function subcategoriesFor(categoryId: string): string[] {
   return CATEGORIES.find((c) => c.id === categoryId)?.subcategories ?? []
-}
-
-export function variantsFor(categoryId: string): string[] {
-  return CATEGORIES.find((c) => c.id === categoryId)?.variants ?? []
 }
 
 /** Collapse unknown / legacy category ids (food, supplies…) into 'other'. */

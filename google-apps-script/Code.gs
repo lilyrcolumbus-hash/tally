@@ -43,7 +43,7 @@ function capitalize(s) {
 // Columns: A=Date, B=Project, C=Category, D=Subcategory(family/stage),
 //   E=Product(component/strain), F=Type(income|expense|inventory),
 //   G=Consumption, H=Qty, I=Unit, J=UnitPrice, K=Total, L=Note, M=ID,
-//   N=Supplier, O=Batch/Lot, P=Variant(Magic/Normal — mushrooms only)
+//   N=Supplier, O=Batch/Lot, P=(reserved, unused)
 // ================================================================
 function entryToRow(entry) {
   var tz = Session.getScriptTimeZone();
@@ -73,7 +73,7 @@ function entryToRow(entry) {
     entry.id || '',                                // M: ID
     entry.supplier || '',                          // N: Supplier
     entry.batchId || '',                           // O: Batch / Lot
-    entry.variant || ''                            // P: Variant (Magic/Normal)
+    ''                                              // P: reserved, unused
   ];
 }
 
@@ -301,7 +301,7 @@ function setupRecord() {
   sh.getRange(2,6,500,1).setDataValidation(dv);
   var dvC = SpreadsheetApp.newDataValidation().requireValueInList(['TRUE','FALSE'],true).build();
   sh.getRange(2,7,500,1).setDataValidation(dvC);
-  var dvV = SpreadsheetApp.newDataValidation().requireValueInList(['','Magic','Normal'],true).build();
+  var dvV = SpreadsheetApp.newDataValidation().requireValueInList([''],true).build();
   sh.getRange(2,16,500,1).setDataValidation(dvV);
 
   if (existingData.length > 0) {
@@ -540,7 +540,7 @@ function testWebhook() {
     entry: {
       id: 'test-' + Date.now(),
       type: 'inventory',
-      product: 'Mac Galactic',
+      product: 'Oyster',
       category: 'mushrooms',
       subcategory: 'Liquid Culture',
       quantity: 93,
@@ -550,11 +550,25 @@ function testWebhook() {
       isConsumption: false,
       supplier: null,
       batchId: null,
-      variant: 'Magic',
       createdAt: new Date().toISOString()
     }
   };
   var e = { postData: { contents: JSON.stringify(testEntry) } };
   var result = doPost(e);
   Logger.log('testWebhook: ' + result.getContent());
+}
+
+// One-time cleanup: the app no longer has a "variant" (Magic/Normal) concept —
+// clears any leftover values in column P on the Record sheet so the sheet
+// matches the app. Run once from the Apps Script editor (select this function
+// in the dropdown, click Run), then it's safe to delete this function.
+function clearVariantColumn() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sh = ss.getSheetByName('Record');
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
+  // Column P = 16th column.
+  var range = sh.getRange(2, 16, lastRow - 1, 1);
+  range.clearContent();
+  Logger.log('Cleared column P (Variant) for ' + (lastRow - 1) + ' rows.');
 }

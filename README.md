@@ -1,5 +1,7 @@
 # Tally — Inventory & Money, tallied
 
+**Live demo:** [tally-6y4.pages.dev](https://tally-6y4.pages.dev) — works instantly in local + demo mode, no account needed.
+
 Tell it by **voice**, snap a **receipt photo**, or **type** it — Tally extracts the item,
 quantity and cost, calculates totals, and saves it. Track your inventory and your spending
 in one place, and mirror everything to a Google Sheet.

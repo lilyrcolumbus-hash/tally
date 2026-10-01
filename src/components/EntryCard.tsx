@@ -51,11 +51,6 @@ export function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
           {entry.isConsumption ? <UtensilsCrossed size={11} className="text-orange-400" /> : <TypeIcon size={11} className={typeColor[entry.type]} />}
           {entry.isConsumption ? <span className="text-orange-400">Consumed</span> : cat.label}
           {entry.subcategory && <span className="text-cyan-300">› {entry.subcategory}</span>}
-          {entry.variant && (
-            <span className={entry.variant.toLowerCase() === 'magic' ? 'text-purple-300' : 'text-ink-500'}>
-              · {entry.variant}
-            </span>
-          )}
           {entry.quantity !== null && (
             <span>
               · {entry.quantity} {entry.unit || 'u.'}

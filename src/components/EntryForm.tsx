@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { EntryDraft, EntryType } from '@/types'
-import { CATEGORIES, subcategoriesFor, variantsFor } from '@/config/categories'
+import { CATEGORIES, subcategoriesFor } from '@/config/categories'
 import { Package, Wallet, Coins } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEntries } from '@/contexts/EntriesContext'
@@ -141,28 +141,6 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
               ))}
             </datalist>
           </Field>
-
-          {variantsFor(draft.category).length > 0 && (
-            <Field label="Type">
-              <div className="flex flex-wrap gap-1.5">
-                {variantsFor(draft.category).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => onChange({ ...draft, variant: draft.variant === v ? null : v })}
-                    className={cn(
-                      'rounded-full border px-2.5 py-1 text-xs transition-colors',
-                      draft.variant === v
-                        ? 'border-gold-400 bg-gold-500/15 text-gold-300'
-                        : 'border-ink-700 bg-ink-800 text-ink-400',
-                    )}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
 
           <Field label="Component / Item">
             <input
