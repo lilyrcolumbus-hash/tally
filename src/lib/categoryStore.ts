@@ -3,10 +3,10 @@ import type { CategoryDef } from '@/config/categories'
 import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_ID } from '@/config/categories'
 
 // User-editable categories, persisted locally. Anyone using the app can add,
-// rename or remove their own categories in Settings — the 4 shipped with the
-// app (Mushrooms/Home/Digital Projects/LYHOFF) are just a starting point, not
-// fixed. A plain module-level store (not React Context) so non-component code
-// (store.ts, gemini.ts, stock.ts) can read/normalize category ids too.
+// rename or remove their own categories in Settings — `DEFAULT_CATEGORIES` is
+// just the seed for a brand-new install, nothing in it is fixed. A plain
+// module-level store (not React Context) so non-component code (store.ts,
+// gemini.ts, stock.ts) can read/normalize category ids too.
 
 const LS_KEY = 'tally_categories'
 const listeners = new Set<() => void>()

@@ -8,23 +8,14 @@ const SHEET_ID = '12UIZT1Kp_K-kehqxh_7zHXPFnhfuSL2TfJbESewb90o';
 const TOKEN    = 'tally2024';
 const NUM_COLS = 16; // A..P — see entryToRow for the column map
 
-// Category map from app → project name in Sheet
+// Category map from app → project name in Sheet. Categories are now
+// user-editable in the app (added/renamed/removed in Settings), so this only
+// needs the fixed fallback id — any other category falls through to the
+// capitalize-and-use-as-is default in categoryToProject() below.
 const CAT_TO_PROJECT = {
-  'mushrooms':       'Mushrooms',
-  'mushroom':        'Mushrooms',
-  'hongos':          'Mushrooms',
-  'home':            'Home',
-  'hogar':           'Home',
-  'jardin':          'Home',
-  'jardín':          'Home',
-  'garden':          'Home',
-  'lyhoff':          'LYHOFF',
-  'digital projects':'Digital Projects',
-  'digital':         'Digital Projects',
-  'proyectos digitales':'Digital Projects',
-  'other':           'Other',
-  'otro':            'Other',
-  'general':         'Other'
+  'other':   'Other',
+  'otro':    'Other',
+  'general': 'Other'
 };
 
 function categoryToProject(cat) {
@@ -272,14 +263,17 @@ function setupRecord() {
   sh.getRange(2,18,10,3).setValues(labels)
     .setBackground('#1e293b').setFontColor('#f8fafc').setFontSize(10);
 
+  // Project/Category dropdowns can't read the app's live category list from
+  // here, so they only pre-fill '(Todos)' + 'Other' and allow typing any
+  // other project/category name as a free-form filter value.
   sh.getRange(2,19).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Mushrooms','Home','LYHOFF','Digital Projects','Other'],true).build()
+    SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Other'],true).setAllowInvalid(true).build()
   ).setValue('(Todos)');
   sh.getRange(3,19).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Inventory','Expense','Income'],true).build()
   ).setValue('(Todos)');
   sh.getRange(4,19).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Food','Mushrooms','Seeds','Software','Supplies','Other'],true).build()
+    SpreadsheetApp.newDataValidation().requireValueInList(['(Todos)','Other'],true).setAllowInvalid(true).build()
   ).setValue('(Todos)');
   sh.getRange(2,19,3,1).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
 
@@ -421,11 +415,11 @@ function setupDashboard() {
   sh.setRowHeight(4,26);
   sh.setFrozenRows(4);
 
+  // Dashboard rows can't read the app's live category list from here (it
+  // lives in the app's localStorage, not the Sheet) — this only ships the
+  // required 'Other' fallback row. Add a row per custom category you create
+  // in the app's Settings, same [emoji+label, project id, background] shape.
   var projects=[
-    ['🍄 Mushrooms','Mushrooms','#d1fae5'],
-    ['🏠 Home','Home','#ede9fe'],
-    ['👜 LYHOFF','LYHOFF','#fef9c3'],
-    ['💻 Digital Projects','Digital Projects','#dbeafe'],
     ['🔵 Other','Other','#f1f5f9'],
   ];
 
@@ -508,7 +502,9 @@ function setupAllSheets() {
   setupInventory();
   Logger.log('  ✅ Inventory ' + (new Date()-t0)+'ms');
 
-  [['Mushrooms'],['Home'],['LYHOFF'],['Digital Projects'],['Other']].forEach(function(p){
+  // Add an entry here per project tab you keep in this Sheet, matching the
+  // categories you create in the app's Settings.
+  [['Other']].forEach(function(p){
     var sh = ss.getSheetByName(p[0]);
     if (sh) {
       setupProjectSheet(sh, p[0]);

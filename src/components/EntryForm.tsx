@@ -133,7 +133,7 @@ export function EntryForm({ draft, currency, onChange }: EntryFormProps) {
               value={draft.subcategory ?? ''}
               onChange={(e) => onChange({ ...draft, subcategory: e.target.value || null })}
               onFocus={scrollIntoCenter}
-              placeholder="e.g. Hummingbird Nectar, Oyster Mushrooms…"
+              placeholder="e.g. Office Supplies, Raw Materials…"
               className={inputClass}
             />
             <datalist id="family-suggestions">
