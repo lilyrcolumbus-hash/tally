@@ -34,6 +34,7 @@ export function HomePage() {
   return (
     <div className="space-y-5">
       {/* This month, by project */}
+      {perCategory.length > 0 && (
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">
           {monthLabel} · net by project
@@ -58,6 +59,7 @@ export function HomePage() {
           ))}
         </div>
       </section>
+      )}
 
       <CapturePanel />
 
