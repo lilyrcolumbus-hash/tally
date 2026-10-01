@@ -39,17 +39,11 @@ Return ONLY JSON: an array of records. ONE RECORD PER DISTINCT LINE ITEM. A rece
 Each record:
 - "type":
   • "income" — money they RECEIVED (a sale, payment, or earning).
-  • "expense" — money spent on services, utilities, or consumables they will NOT resell (electricity, packaging, tools, restaurant supplies).
-  • "inventory" — physical goods they HAVE, GREW, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., mushrooms, produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
+  • "expense" — money spent on services, utilities, or consumables they will NOT resell (electricity, packaging, tools, supplies).
+  • "inventory" — physical goods they HAVE, MADE, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
   The user pre-selected "${input.defaultType}" as the default type — use it when no other type is clearly evident from the text.
-- "subcategory": the PRODUCT FAMILY name IN ENGLISH — the master product these components belong to.
-  • For category "mushrooms": the CULTIVATION STAGE ONLY (e.g. "Liquid Culture", "Grain Spawn", "Agar", "Fruiting", "Fresh", "Dried"). If no stage is mentioned, use null. NEVER put a species/strain name here (Oyster, Shiitake go in "product", not here).
-  • For "inventory" in every other category: use the product family / brand name (e.g. "Hummingbird Nectar", "Garden Herbs"). This groups components together.
-  • For "income"/"expense" outside mushrooms: the product line or project (e.g. "Garden" for Home, "Tally" for Digital), or null.
-- "product": the specific COMPONENT or ITEM IN ENGLISH (translate from Spanish).
-  • For category "mushrooms": the specific SPECIES/STRAIN name (e.g. "Oyster", "Shiitake", "Lion's Mane").
-  • For "inventory" in other categories: the specific component/variant being tracked (e.g. "Bags", "Labels", "Sugar", "Seeds", "Jars", "Powder"). If there is no component distinction, use the full product name (same as subcategory).
-  • For "income"/"expense" outside mushrooms: the item name. Null if they only stated an amount.
+- "subcategory": the PRODUCT FAMILY name IN ENGLISH — the master product/line these components belong to (e.g. "Garden Herbs", "Office Supplies", "Candles"). This groups components together. For "income"/"expense", the product line or project, or null.
+- "product": the specific COMPONENT or ITEM IN ENGLISH (translate from Spanish) — e.g. "Bags", "Labels", "Sugar", "Seeds", "Jars", "Powder". If there is no component distinction, use the full product name (same as subcategory). For "income"/"expense", the item name, or null if they only stated an amount.
 - "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
 - "quantity": number of units, or null.
 - "unit": the unit of measure, normalized to a standard English abbreviation (lb, kg, g, oz, l, ml, box, bag, bottle, pc, doz…). Always translate and normalize: "libras"→"lb", "kilos"→"kg", "gramos"→"g", "cajas"→"box", "litros"→"l". Null if not stated.
@@ -65,19 +59,17 @@ COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phra
 Currency is ${input.currency}; return plain numbers (no symbols). All text fields (product, subcategory, note) must be in ENGLISH. supplier and batchId stay as-is from the document.
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
-Example — receipt photo with 2 line items from supplier "FreshFarm":
-Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889"},{"type":"inventory","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890"}]
+Example — receipt photo with 2 line items from supplier "Acme Supply Co.":
+Output: [{"type":"inventory","product":"Candles","category":"other","subcategory":"Scented Jar Candles","quantity":10,"unit":"pc","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"Acme Supply Co.","batchId":"LOT-2024-889"},{"type":"inventory","product":"Labels","category":"other","subcategory":"Scented Jar Candles","quantity":5,"unit":"box","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"Acme Supply Co.","batchId":"LOT-2024-890"}]
 
-Example: "vendí 3 libras de hongos shiitake a 5 cada una"
-Output: [{"type":"income","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
-Example: "bought 20 lb oyster mushrooms for $80"
-Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
-Example: "tengo 93 bolsas de liquid culture de blue oyster"
-Output: [{"type":"inventory","product":"Blue Oyster","category":"mushrooms","subcategory":"Liquid Culture","quantity":93,"unit":"bag","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
-Example: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
-Output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "vendí 3 velas a 5 cada una"
+Output: [{"type":"income","product":"Candles","category":"other","subcategory":null,"quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "bought 20 lb coffee beans for $80"
+Output: [{"type":"inventory","product":"Coffee Beans","category":"other","subcategory":null,"quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "tengo 93 bolsas de semillas de tomate"
+Output: [{"type":"inventory","product":"Tomato Seeds","category":"other","subcategory":"Seeds","quantity":93,"unit":"bag","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
 Example: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
-Output: [{"type":"inventory","product":"Apple","category":"home","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null},{"type":"expense","product":"Apple","category":"home","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true,"supplier":null,"batchId":null}]
+Output: [{"type":"inventory","product":"Apple","category":"other","subcategory":"Food","quantity":3,"unit":"pc","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null},{"type":"expense","product":"Apple","category":"other","subcategory":"Food","quantity":0.5,"unit":"pc","unitPrice":5,"total":2.5,"note":null,"isConsumption":true,"supplier":null,"batchId":null}]
 
 ${
     input.inventoryContext && input.inventoryContext.length > 0

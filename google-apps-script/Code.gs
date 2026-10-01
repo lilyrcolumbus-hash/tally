@@ -536,9 +536,9 @@ function testWebhook() {
     entry: {
       id: 'test-' + Date.now(),
       type: 'inventory',
-      product: 'Oyster',
-      category: 'mushrooms',
-      subcategory: 'Liquid Culture',
+      product: 'Candles',
+      category: 'other',
+      subcategory: 'Scented Jar Candles',
       quantity: 93,
       unit: 'bag',
       unitPrice: null,
@@ -554,7 +554,7 @@ function testWebhook() {
   Logger.log('testWebhook: ' + result.getContent());
 }
 
-// One-time cleanup: the app no longer has a "variant" (Magic/Normal) concept —
+// One-time cleanup: the app no longer has a "variant" classification concept —
 // clears any leftover values in column P on the Record sheet so the sheet
 // matches the app. Run once from the Apps Script editor (select this function
 // in the dropdown, click Run), then it's safe to delete this function.

@@ -10,7 +10,7 @@ export interface Entry {
   /** Product/item name (in English). Null is allowed for an expense with no named product. */
   product: string | null
   category: string
-  /** Subcategory / product line within the category (Shiitake, Garden, Tally…). */
+  /** Subcategory / product line within the category (e.g. Candles, Garden, Software…). */
   subcategory: string | null
   /** Units held (inventory). Null for pure expenses. */
   quantity: number | null
