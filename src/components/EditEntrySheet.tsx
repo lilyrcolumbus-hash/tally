@@ -5,6 +5,24 @@ import { EntryForm } from '@/components/EntryForm'
 import { Button } from '@/components/ui/Button'
 import { Check } from 'lucide-react'
 
+// entry.createdAt is a UTC ISO timestamp. Slicing it directly (old code) reads
+// the UTC calendar date, which is off by one for anyone behind UTC once the
+// local time crosses midnight but UTC hasn't yet (or vice versa) — exactly
+// the "date shifts by a day after editing" bug. Use local date components
+// instead, both when showing the date in the form and when saving it back.
+function toLocalDateInputValue(iso: string): string {
+  const d = new Date(iso)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function localDateInputToISO(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day).toISOString()
+}
+
 interface EditEntrySheetProps {
   entry: Entry | null
   onSave: (entry: Entry) => Promise<void>
@@ -22,12 +40,11 @@ function toDraft(entry: Entry): EntryDraft {
     unitPrice: entry.unitPrice,
     total: entry.total,
     note: entry.note,
-    date: entry.createdAt.slice(0, 10),
+    date: toLocalDateInputValue(entry.createdAt),
     lowStockThreshold: entry.lowStockThreshold,
     isConsumption: entry.isConsumption,
     supplier: entry.supplier,
     batchId: entry.batchId,
-    variant: entry.variant,
   }
 }
 
@@ -57,8 +74,7 @@ export function EditEntrySheet({ entry, onSave, onClose }: EditEntrySheetProps) 
       isConsumption: draft.isConsumption ?? entry.isConsumption,
       supplier: draft.supplier ?? null,
       batchId: draft.batchId ?? null,
-      variant: draft.variant ?? null,
-      createdAt: draft.date ? new Date(draft.date).toISOString() : entry.createdAt,
+      createdAt: draft.date ? localDateInputToISO(draft.date) : entry.createdAt,
     }
     try {
       await onSave(updated)

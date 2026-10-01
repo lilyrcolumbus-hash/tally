@@ -4,16 +4,10 @@ import { ChevronLeft } from 'lucide-react'
 import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById } from '@/config/categories'
 import { dominantCurrency, financeForPeriod, formatCurrency, type Period } from '@/lib/utils'
+import { computeStock } from '@/lib/stock'
 import { Card } from '@/components/ui/Card'
 import { PeriodToggle } from '@/components/ui/PeriodToggle'
 import { EntryList } from '@/components/EntryList'
-
-interface InvItem {
-  name: string
-  qty: number
-  value: number
-  unit: string | null
-}
 
 export function CategoryDetailPage() {
   const { id = '' } = useParams()
@@ -25,38 +19,12 @@ export function CategoryDetailPage() {
   const currency = dominantCurrency(mine.filter((e) => e.type === 'income' || e.type === 'expense'))
   const finance = useMemo(() => financeForPeriod(mine, currency, period), [mine, currency, period])
 
-  const stockValue = useMemo(() => {
-    const purchased = mine
-      .filter((e) => e.type === 'inventory' && e.currency === currency)
-      .reduce((sum, e) => sum + (e.total ?? 0), 0)
-    const consumed = mine
-      .filter((e) => e.isConsumption && e.type === 'expense' && e.currency === currency)
-      .reduce((sum, e) => sum + (e.total ?? 0), 0)
-    return purchased - consumed
-  }, [mine, currency])
-
-  const inventory = useMemo(() => {
-    const items = new Map<string, InvItem>()
-    for (const e of mine) {
-      if (e.type !== 'inventory' || e.currency !== currency) continue
-      const key = e.subcategory || e.product || 'Item'
-      const item = items.get(key) ?? { name: key, qty: 0, value: 0, unit: null }
-      item.qty += e.quantity ?? 0
-      item.value += e.total ?? 0
-      if (!item.unit && e.unit) item.unit = e.unit
-      items.set(key, item)
-    }
-    // Subtract consumed-from-stock
-    for (const e of mine) {
-      if (!e.isConsumption || e.type !== 'expense' || e.currency !== currency) continue
-      const key = e.subcategory || e.product || 'Item'
-      const item = items.get(key)
-      if (!item) continue
-      item.qty -= e.quantity ?? 0
-      item.value -= e.total ?? 0
-    }
-    return [...items.values()]
-  }, [mine, currency])
+  const stock = useMemo(() => computeStock(mine, { category: id, currency }), [mine, id, currency])
+  const stockValue = useMemo(() => stock.reduce((sum, item) => sum + item.netValue, 0), [stock])
+  const inventory = useMemo(
+    () => stock.map((item) => ({ name: item.product, qty: item.netQty, value: item.netValue, unit: item.unit })),
+    [stock],
+  )
 
   return (
     <div className="space-y-4">

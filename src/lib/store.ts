@@ -2,6 +2,7 @@ import type { Entry } from '@/types'
 import { normalizeCategoryId } from '@/config/categories'
 import { getSupabase } from '@/lib/supabase'
 import { pushToSheet, pushToSheetChecked } from '@/lib/sheets'
+import { normalizeUnit } from '@/lib/utils'
 
 const LS_KEY = 'tally_entries'
 
@@ -108,7 +109,7 @@ export async function listEntries(): Promise<Entry[]> {
 }
 
 export async function addEntry(entry: Entry): Promise<void> {
-  const normalized = { ...entry, category: normalizeCategoryId(entry.category) }
+  const normalized = { ...entry, category: normalizeCategoryId(entry.category), unit: normalizeUnit(entry.unit) }
   const session = await cloud()
   if (session) {
     const { error } = await session.client.from('entries').insert(toRow(normalized, session.userId))
@@ -120,7 +121,7 @@ export async function addEntry(entry: Entry): Promise<void> {
 }
 
 export async function updateEntry(updated: Entry): Promise<void> {
-  const normalized = { ...updated, category: normalizeCategoryId(updated.category) }
+  const normalized = { ...updated, category: normalizeCategoryId(updated.category), unit: normalizeUnit(updated.unit) }
   const session = await cloud()
   if (session) {
     const { error } = await session.client.from('entries').update(toRow(normalized)).eq('id', normalized.id)

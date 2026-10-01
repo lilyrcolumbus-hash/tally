@@ -1,5 +1,6 @@
 import type { EntryDraft, EntryType, ExtractionResult } from '@/types'
 import { CATEGORIES, DEFAULT_CATEGORY_ID } from '@/config/categories'
+import { normalizeUnit } from '@/lib/utils'
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
 const hasClientKey = Boolean(apiKey && !apiKey.includes('YOUR_'))
@@ -41,11 +42,11 @@ Each record:
   • "inventory" — physical goods they HAVE, GREW, or BOUGHT to sell or track as stock. KEY RULE: if they bought something that IS their product or a raw material for their product (e.g., mushrooms, produce, resale items), use "inventory" even if the sentence uses "bought" or "paid".
   The user pre-selected "${input.defaultType}" as the default type — use it when no other type is clearly evident from the text.
 - "subcategory": the PRODUCT FAMILY name IN ENGLISH — the master product these components belong to.
-  • For category "mushrooms": the CULTIVATION STAGE ONLY (e.g. "Liquid Culture", "Grain Spawn", "Agar", "Fruiting", "Fresh", "Dried") — the stage applies to ANY strain regardless of Magic or Normal. If no stage is mentioned, use null. NEVER put a species/strain name here (Oyster, Shiitake, White Rabbit, Mac Galactic go in "product", not here).
+  • For category "mushrooms": the CULTIVATION STAGE ONLY (e.g. "Liquid Culture", "Grain Spawn", "Agar", "Fruiting", "Fresh", "Dried"). If no stage is mentioned, use null. NEVER put a species/strain name here (Oyster, Shiitake go in "product", not here).
   • For "inventory" in every other category: use the product family / brand name (e.g. "Hummingbird Nectar", "Garden Herbs"). This groups components together.
   • For "income"/"expense" outside mushrooms: the product line or project (e.g. "Garden" for Home, "Tally" for Digital), or null.
 - "product": the specific COMPONENT or ITEM IN ENGLISH (translate from Spanish).
-  • For category "mushrooms": the specific SPECIES/STRAIN name (e.g. "Oyster", "Shiitake", "Lion's Mane", "White Rabbit", "Mac Galactic") — this is true whether it's Magic or Normal.
+  • For category "mushrooms": the specific SPECIES/STRAIN name (e.g. "Oyster", "Shiitake", "Lion's Mane").
   • For "inventory" in other categories: the specific component/variant being tracked (e.g. "Bags", "Labels", "Sugar", "Seeds", "Jars", "Powder"). If there is no component distinction, use the full product name (same as subcategory).
   • For "income"/"expense" outside mushrooms: the item name. Null if they only stated an amount.
 - "category": one of these ids: ${categoryList}. If you genuinely cannot tell which one it is, return "" (empty string) so the app can ask the user.
@@ -57,7 +58,6 @@ Each record:
 - "isConsumption": true ONLY for "expense" records that represent the user consuming, eating, using up, discarding, or wasting something from their own stock. Do NOT set for regular purchases, services, or utilities.
 - "supplier": the vendor, supplier, or company name exactly as it appears on the document (e.g. "Sysco", "FreshFarm Co.", "Costco"), or null if not visible.
 - "batchId": any batch number, lot number, SKU, invoice number, PO number, or product code visible on the label or document for this line item. Use the most specific identifier (lot/batch over invoice). Null if none.
-- "variant": ONLY for category "mushrooms" — "Magic" if the specific strain is a psilocybin/magic mushroom (e.g. "White Rabbit", "Mac Galactic", "Blue Magnolia", "Penis Envy", "Golden Teacher" or similar known psilocybin strain names), "Normal" if it's a culinary/gourmet species (Oyster, Shiitake, Lion's Mane, Reishi). Null for every other category, and null if genuinely unsure — never guess.
 
 COMPOUND EVENTS: when the user mentions both acquiring AND consuming in one phrase, return TWO records: one "inventory" for the purchase, and one "expense" with isConsumption:true for the consumed portion.
 
@@ -65,14 +65,14 @@ Currency is ${input.currency}; return plain numbers (no symbols). All text field
 If they only say how much they spent/earned without detail (e.g. "I sold 50"), return product null, the right type, total 50, and category "" so the app asks.
 
 Example — receipt photo with 2 line items from supplier "FreshFarm":
-Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889","variant":"Normal"},{"type":"inventory","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890","variant":"Normal"}]
+Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":10,"unit":"lb","unitPrice":4,"total":40,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-889"},{"type":"inventory","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":5,"unit":"lb","unitPrice":6,"total":30,"note":null,"isConsumption":false,"supplier":"FreshFarm","batchId":"LOT-2024-890"}]
 
 Example: "vendí 3 libras de hongos shiitake a 5 cada una"
-Output: [{"type":"income","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Normal"}]
+Output: [{"type":"income","product":"Shiitake","category":"mushrooms","subcategory":null,"quantity":3,"unit":"lb","unitPrice":5,"total":15,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
 Example: "bought 20 lb oyster mushrooms for $80"
-Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Normal"}]
-Example: "tengo 93 bolsas de liquid culture de mac galactic"
-Output: [{"type":"inventory","product":"Mac Galactic","category":"mushrooms","subcategory":"Liquid Culture","quantity":93,"unit":"bag","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null,"variant":"Magic"}]
+Output: [{"type":"inventory","product":"Oyster","category":"mushrooms","subcategory":null,"quantity":20,"unit":"lb","unitPrice":4,"total":80,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
+Example: "tengo 93 bolsas de liquid culture de blue oyster"
+Output: [{"type":"inventory","product":"Blue Oyster","category":"mushrooms","subcategory":"Liquid Culture","quantity":93,"unit":"bag","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
 Example: "tengo 4 etiquetas de hummingbird nectar" (with known family "Hummingbird Nectar" in lyhoff)
 Output: [{"type":"inventory","product":"Labels","category":"lyhoff","subcategory":"Hummingbird Nectar","quantity":4,"unit":"label","unitPrice":null,"total":null,"note":null,"isConsumption":false,"supplier":null,"batchId":null}]
 Example: "compré 3 manzanas a $5 cada una y me comí la mitad de una"
@@ -98,28 +98,8 @@ interface RawDraft {
   isConsumption?: boolean
   supplier?: string | null
   batchId?: string | null
-  variant?: string | null
 }
 
-const UNIT_MAP: Record<string, string> = {
-  lbs: 'lb', pound: 'lb', pounds: 'lb', libra: 'lb', libras: 'lb',
-  kilogram: 'kg', kilograms: 'kg', kilo: 'kg', kilos: 'kg', kilogramo: 'kg', kilogramos: 'kg',
-  gram: 'g', grams: 'g', gramo: 'g', gramos: 'g',
-  liter: 'l', liters: 'l', litre: 'l', litres: 'l', litro: 'l', litros: 'l',
-  milliliter: 'ml', milliliters: 'ml', mililitro: 'ml', mililitros: 'ml',
-  ounce: 'oz', ounces: 'oz', onza: 'oz', onzas: 'oz',
-  boxes: 'box', caja: 'box', cajas: 'box',
-  bags: 'bag', bolsa: 'bag', bolsas: 'bag',
-  bottles: 'bottle', botella: 'bottle', botellas: 'bottle',
-  piece: 'pc', pieces: 'pc', pieza: 'pc', piezas: 'pc',
-  dozen: 'doz', docena: 'doz', docenas: 'doz',
-}
-
-function normalizeUnit(raw: string | null): string | null {
-  if (!raw) return null
-  const lower = raw.trim().toLowerCase()
-  return UNIT_MAP[lower] ?? raw.trim()
-}
 
 function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const validTypes: EntryType[] = ['inventory', 'expense', 'income']
@@ -137,8 +117,7 @@ function normalizeDraft(raw: RawDraft, fallbackType: EntryType): EntryDraft {
   const isConsumption = raw.isConsumption === true && type === 'expense'
   const supplier = typeof raw.supplier === 'string' && raw.supplier.trim() ? raw.supplier.trim() : null
   const batchId = typeof raw.batchId === 'string' && raw.batchId.trim() ? raw.batchId.trim() : null
-  const variant = typeof raw.variant === 'string' && raw.variant.trim() ? raw.variant.trim() : null
-  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption, supplier, batchId, variant }
+  return { type, product, category, subcategory, quantity, unit, unitPrice, total, note, isConsumption, supplier, batchId }
 }
 
 type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } }

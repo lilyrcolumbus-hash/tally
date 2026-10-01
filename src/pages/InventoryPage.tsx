@@ -7,6 +7,7 @@ import { MAIN_CATEGORIES, categoryById, normalizeCategoryId } from '@/config/cat
 import { EntryCard } from '@/components/EntryCard'
 import { EditEntrySheet } from '@/components/EditEntrySheet'
 import { cn } from '@/lib/utils'
+import { computeStock } from '@/lib/stock'
 
 interface StockComponent {
   key: string
@@ -15,7 +16,6 @@ interface StockComponent {
   netQty: number
   lowStockThreshold: number | null
   isLow: boolean
-  variant: string | null
   entries: Entry[]
 }
 
@@ -30,21 +30,6 @@ interface CategoryGroup {
   families: StockFamily[]
 }
 
-function VariantBadge({ variant }: { variant: string | null }) {
-  if (!variant) return null
-  const isMagic = variant.toLowerCase() === 'magic'
-  return (
-    <span
-      className={cn(
-        'rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none',
-        isMagic ? 'border-purple-400/50 bg-purple-500/15 text-purple-300' : 'border-ink-700 bg-ink-800 text-ink-500',
-      )}
-    >
-      {variant}
-    </span>
-  )
-}
-
 export function InventoryPage() {
   const { entries, update, remove } = useEntries()
   const [filter, setFilter] = useState('all')
@@ -53,62 +38,28 @@ export function InventoryPage() {
 
   const groups = useMemo((): CategoryGroup[] => {
     const order = [...MAIN_CATEGORIES.map((c) => c.id), 'other']
+    const normalizedEntries = entries.map((e) => ({ ...e, category: normalizeCategoryId(e.category) }))
+    const stock = computeStock(normalizedEntries, { category: filter })
     const catMap = new Map<string, Map<string, StockFamily>>()
 
-    for (const e of entries) {
-      if (e.type !== 'inventory' || !e.product?.trim()) continue
-      const cid = normalizeCategoryId(e.category)
-      if (filter !== 'all' && cid !== filter) continue
-
-      const familyName = e.subcategory?.trim() || e.product.trim()
-      const componentName = e.product.trim()
-      const familyKey = `${cid}::${familyName}`
-      const compKey = `${familyKey}::${componentName}`
-
-      const familyMap = catMap.get(cid) ?? new Map<string, StockFamily>()
+    for (const item of stock) {
+      const familyMap = catMap.get(item.category) ?? new Map<string, StockFamily>()
+      const familyName = item.family ?? item.product
+      const familyKey = `${item.category}::${familyName}`
       const family = familyMap.get(familyKey) ?? { familyKey, familyName, components: [] }
 
-      let comp = family.components.find((c) => c.key === compKey)
-      if (!comp) {
-        comp = { key: compKey, product: componentName, unit: e.unit, netQty: 0, lowStockThreshold: null, isLow: false, variant: null, entries: [] }
-        family.components.push(comp)
-      }
-      comp.netQty += e.quantity ?? 0
-      comp.entries.push(e)
-      if (!comp.unit && e.unit) comp.unit = e.unit
-      if (!comp.variant && e.variant) comp.variant = e.variant
-      if (e.lowStockThreshold != null) {
-        comp.lowStockThreshold =
-          comp.lowStockThreshold == null ? e.lowStockThreshold : Math.max(comp.lowStockThreshold, e.lowStockThreshold)
-      }
+      family.components.push({
+        key: item.key,
+        product: item.product,
+        unit: item.unit,
+        netQty: item.netQty,
+        lowStockThreshold: item.lowStockThreshold,
+        isLow: item.lowStockThreshold != null && item.netQty <= item.lowStockThreshold,
+        entries: item.entries,
+      })
 
       familyMap.set(familyKey, family)
-      catMap.set(cid, familyMap)
-    }
-
-    // Subtract consumptions
-    for (const e of entries) {
-      if (!e.isConsumption || e.type !== 'expense' || !e.product?.trim()) continue
-      const cid = normalizeCategoryId(e.category)
-      if (filter !== 'all' && cid !== filter) continue
-      const familyMap = catMap.get(cid)
-      if (!familyMap) continue
-      const familyName = e.subcategory?.trim() || e.product.trim()
-      const familyKey = `${cid}::${familyName}`
-      const compKey = `${familyKey}::${e.product.trim()}`
-      const family = familyMap.get(familyKey)
-      if (!family) continue
-      const comp = family.components.find((c) => c.key === compKey)
-      if (comp) comp.netQty -= e.quantity ?? 0
-    }
-
-    // Compute isLow after all qty settled
-    for (const familyMap of catMap.values()) {
-      for (const family of familyMap.values()) {
-        for (const comp of family.components) {
-          comp.isLow = comp.lowStockThreshold != null && comp.netQty <= comp.lowStockThreshold
-        }
-      }
+      catMap.set(item.category, familyMap)
     }
 
     return order
@@ -195,7 +146,6 @@ export function InventoryPage() {
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-ink-300">{comp.product}</span>
-                            <VariantBadge variant={comp.variant} />
                             {comp.isLow && <AlertTriangle size={13} className="text-amber-400" />}
                           </div>
                           <span className={cn('text-sm font-bold', comp.isLow ? 'text-amber-400' : 'text-[#4285F4]')}>
@@ -233,7 +183,6 @@ export function InventoryPage() {
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-sm text-ink-300">{comp.product}</span>
-                                <VariantBadge variant={comp.variant} />
                                 {comp.isLow && <AlertTriangle size={12} className="text-amber-400" />}
                               </div>
                               <span className={cn('text-sm font-bold', comp.isLow ? 'text-amber-400' : 'text-[#4285F4]')}>

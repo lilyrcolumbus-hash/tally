@@ -5,6 +5,30 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }
 
+const UNIT_MAP: Record<string, string> = {
+  lbs: 'lb', pound: 'lb', pounds: 'lb', libra: 'lb', libras: 'lb',
+  kilogram: 'kg', kilograms: 'kg', kilo: 'kg', kilos: 'kg', kilogramo: 'kg', kilogramos: 'kg',
+  gram: 'g', grams: 'g', gramo: 'g', gramos: 'g',
+  liter: 'l', liters: 'l', litre: 'l', litres: 'l', litro: 'l', litros: 'l',
+  milliliter: 'ml', milliliters: 'ml', mililitro: 'ml', mililitros: 'ml',
+  ounce: 'oz', ounces: 'oz', onza: 'oz', onzas: 'oz',
+  boxes: 'box', caja: 'box', cajas: 'box',
+  bags: 'bag', bolsa: 'bag', bolsas: 'bag',
+  bottles: 'bottle', botella: 'bottle', botellas: 'bottle',
+  piece: 'pc', pieces: 'pc', pieza: 'pc', piezas: 'pc',
+  dozen: 'doz', docena: 'doz', docenas: 'doz',
+}
+
+/** Normalizes a unit string to a standard English abbreviation (lb, kg, box…).
+ * Shared so manual entries/edits get the same normalization as AI-parsed ones —
+ * otherwise "libras" and "lb" are treated as different units downstream. */
+export function normalizeUnit(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const lower = raw.trim().toLowerCase()
+  if (!lower) return null
+  return UNIT_MAP[lower] ?? raw.trim()
+}
+
 export function formatCurrency(amount: number | null, currency = 'USD'): string {
   if (amount === null || Number.isNaN(amount)) return '—'
   try {

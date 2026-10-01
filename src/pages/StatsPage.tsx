@@ -3,16 +3,10 @@ import { Link } from 'react-router-dom'
 import { useEntries } from '@/contexts/EntriesContext'
 import { categoryById, normalizeCategoryId } from '@/config/categories'
 import { formatCurrency, dominantCurrency, financeForPeriod, inPeriod, type Period } from '@/lib/utils'
+import { computeStock } from '@/lib/stock'
 import { Card } from '@/components/ui/Card'
 import { PeriodToggle } from '@/components/ui/PeriodToggle'
 import { AlertTriangle, TrendingUp, TrendingDown, Scale, Package, ChevronRight } from 'lucide-react'
-
-interface InvItem {
-  name: string
-  qty: number
-  value: number
-  unit: string | null
-}
 
 export function StatsPage() {
   const { entries } = useEntries()
@@ -42,45 +36,26 @@ export function StatsPage() {
       .sort((a, b) => b.earned + b.spent - (a.earned + a.spent))
   }, [entries, currency, period])
 
-  // Inventory grouped by category → subcategory/product (all-time stock)
-  const inventoryGroups = useMemo(() => {
-    const cats = new Map<string, { value: number; items: Map<string, InvItem> }>()
-    for (const e of entries) {
-      if (e.type !== 'inventory' || e.currency !== currency) continue
-      const cid = normalizeCategoryId(e.category)
-      const cat = cats.get(cid) ?? { value: 0, items: new Map<string, InvItem>() }
-      const key = e.product || e.subcategory || 'Item'
-      const item = cat.items.get(key) ?? { name: key, qty: 0, value: 0, unit: null }
-      item.qty += e.quantity ?? 0
-      item.value += e.total ?? 0
-      if (!item.unit && e.unit) item.unit = e.unit
-      cat.items.set(key, item)
-      cat.value += e.total ?? 0
-      cats.set(cid, cat)
-    }
-    // Subtract consumed-from-stock expenses
-    for (const e of entries) {
-      if (!e.isConsumption || e.type !== 'expense' || e.currency !== currency) continue
-      const cid = normalizeCategoryId(e.category)
-      const cat = cats.get(cid)
-      if (!cat) continue
-      const key = e.product || e.subcategory || 'Item'
-      const item = cat.items.get(key)
-      if (!item) continue
-      item.qty -= e.quantity ?? 0
-      item.value -= e.total ?? 0
-      cat.value -= e.total ?? 0
-    }
-    return [...cats.entries()].map(([id, d]) => ({ id, value: d.value, items: [...d.items.values()] }))
+  // Inventory grouped by category → product (all-time net stock, one source of truth)
+  const stock = useMemo(() => {
+    const normalized = entries.map((e) => ({ ...e, category: normalizeCategoryId(e.category) }))
+    return computeStock(normalized, { currency })
   }, [entries, currency])
 
-  const lowStock = entries.filter(
-    (e) =>
-      e.type === 'inventory' &&
-      e.quantity !== null &&
-      e.lowStockThreshold !== null &&
-      e.quantity <= e.lowStockThreshold,
-  )
+  const inventoryGroups = useMemo(() => {
+    const cats = new Map<string, { value: number; items: typeof stock }>()
+    for (const item of stock) {
+      const cat = cats.get(item.category) ?? { value: 0, items: [] }
+      cat.items.push(item)
+      cat.value += item.netValue
+      cats.set(item.category, cat)
+    }
+    return [...cats.entries()].map(([id, d]) => ({ id, value: d.value, items: d.items }))
+  }, [stock])
+
+  // Net stock per product vs. its threshold — not each purchase entry's own
+  // quantity, which never reflected what's actually left after sales/use.
+  const lowStock = stock.filter((item) => item.lowStockThreshold != null && item.netQty <= item.lowStockThreshold)
 
   return (
     <div className="space-y-5">
@@ -172,10 +147,11 @@ export function StatsPage() {
                   </div>
                   <div className="space-y-1">
                     {group.items.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between text-xs">
-                        <span className="text-ink-400">{item.name}</span>
+                      <div key={item.key} className="flex items-center justify-between text-xs">
+                        <span className="text-ink-400">{item.product}</span>
                         <span className="text-ink-500">
-                          {item.qty} {item.unit || 'u.'} · {formatCurrency(item.value, currency)}
+                          {Math.round(item.netQty * 1000) / 1000} {item.unit || 'u.'} ·{' '}
+                          {formatCurrency(item.netValue, currency)}
                         </span>
                       </div>
                     ))}
@@ -196,18 +172,18 @@ export function StatsPage() {
           <p className="py-4 text-center text-sm text-ink-600">Everything is well stocked. 👍</p>
         ) : (
           <div className="space-y-2">
-            {lowStock.map((e) => {
-              const cat = categoryById(e.category)
+            {lowStock.map((item) => {
+              const cat = categoryById(item.category)
               return (
                 <div
-                  key={e.id}
+                  key={item.key}
                   className="flex items-center justify-between rounded-xl border border-danger/30 bg-danger/5 px-3 py-2 text-sm"
                 >
                   <span className="text-ink-300">
-                    {cat.emoji} {e.subcategory || e.product || 'Item'}
+                    {cat.emoji} {item.product}
                   </span>
                   <span className="font-semibold text-danger">
-                    {e.quantity} {e.unit || 'left'}
+                    {Math.round(item.netQty * 1000) / 1000} {item.unit || 'left'}
                   </span>
                 </div>
               )
