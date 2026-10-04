@@ -8,8 +8,8 @@ import { DEFAULT_CATEGORY_ID, type CategoryDef } from '@/config/categories'
 import { useCategories, normalizeCategoryId, addCategory, updateCategory, removeCategory } from '@/lib/categoryStore'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { cn } from '@/lib/utils'
-import { isGeminiConfigured } from '@/lib/gemini'
-import { isSheetsConfigured } from '@/lib/sheets'
+import { isGeminiConfigured, loadGeminiKey, saveGeminiKey } from '@/lib/gemini'
+import { isSheetsConfigured, loadSheetsConfig, saveSheetsConfig } from '@/lib/sheets'
 import {
   HardDrive,
   Sparkles,
@@ -61,6 +61,10 @@ export function SettingsPage() {
   const [categoryForm, setCategoryForm] = useState<CategoryFormState | null>(null)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [deletingCategory, setDeletingCategory] = useState<CategoryDef | null>(null)
+  // Personal connections, kept only in this browser. `connectionsVersion` re-reads their status after saving.
+  const [geminiKeyInput, setGeminiKeyInput] = useState(loadGeminiKey())
+  const [sheetsInput, setSheetsInput] = useState(loadSheetsConfig())
+  const [connectionsVersion, setConnectionsVersion] = useState(0)
 
   const otherEntries = entries.filter((e) => normalizeCategoryId(e.category) === 'other')
 
@@ -186,23 +190,80 @@ export function SettingsPage() {
       <Card className="px-4 py-4">
         <h2 className="mb-2 text-sm font-bold text-ink-300">Connections</h2>
         <StatusRow
-          ok={isGeminiConfigured}
+          ok={connectionsVersion >= 0 && isGeminiConfigured()}
           label={<><Sparkles size={15} /> AI (voice &amp; photo)</>}
           on="On"
           off="Demo mode"
         />
         <StatusRow
-          ok={isSheetsConfigured}
+          ok={connectionsVersion >= 0 && isSheetsConfigured()}
           label={<><SheetIcon size={15} /> Google Sheets</>}
           on="On"
           off="Off"
         />
         <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-ink-800/60 px-2.5 py-2 text-[11px] text-ink-500">
           <HardDrive size={13} className="mt-0.5 shrink-0" />
-          {isSheetsConfigured
+          {isSheetsConfigured()
             ? 'Everything you add is saved on this device and copied to your Google Sheet automatically.'
             : 'Everything you add is saved on this device.'}
         </p>
+      </Card>
+
+      {/* Personal connections */}
+      <Card className="px-4 py-4">
+        <h2 className="mb-1 text-sm font-bold text-ink-300">Use your own accounts</h2>
+        <p className="mb-3 text-[11px] text-ink-500">
+          Optional. Connect your own Gemini key and Google Sheet. They are stored only in this browser and
+          sent only to Google. Without them, entries stay on this device.
+        </p>
+        <label className="mb-3 block">
+          <span className="mb-1 block text-xs font-medium text-ink-400">Gemini API key</span>
+          <input
+            type="password"
+            value={geminiKeyInput}
+            onChange={(e) => setGeminiKeyInput(e.target.value)}
+            autoComplete="off"
+            placeholder="Paste your key from aistudio.google.com/apikey"
+            className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-ink-300 outline-none focus:border-gold-500"
+          />
+        </label>
+        <label className="mb-3 block">
+          <span className="mb-1 block text-xs font-medium text-ink-400">Google Sheets web app URL</span>
+          <input
+            type="url"
+            value={sheetsInput.url}
+            onChange={(e) => setSheetsInput({ ...sheetsInput, url: e.target.value })}
+            autoComplete="off"
+            placeholder="https://script.google.com/macros/s/…/exec"
+            className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-ink-300 outline-none focus:border-gold-500"
+          />
+        </label>
+        <label className="mb-3 block">
+          <span className="mb-1 block text-xs font-medium text-ink-400">Sheets token</span>
+          <input
+            type="password"
+            value={sheetsInput.token}
+            onChange={(e) => setSheetsInput({ ...sheetsInput, token: e.target.value })}
+            autoComplete="off"
+            placeholder="The TALLY_TOKEN you set in Apps Script"
+            className="w-full rounded-xl border border-ink-700 bg-ink-800 px-3 py-2.5 text-sm text-ink-300 outline-none focus:border-gold-500"
+          />
+        </label>
+        <Button
+          onClick={() => {
+            if (sheetsInput.url.trim() && !sheetsInput.url.trim().startsWith('https://')) {
+              toast.error('The Sheets URL must start with https://')
+              return
+            }
+            saveGeminiKey(geminiKeyInput)
+            saveSheetsConfig(sheetsInput)
+            setConnectionsVersion((v) => v + 1)
+            toast.success('Connections saved on this device')
+          }}
+        >
+          <Check size={14} />
+          Save connections
+        </Button>
       </Card>
 
       {/* Categories */}

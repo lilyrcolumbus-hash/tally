@@ -7,6 +7,7 @@ interface Env {
 }
 
 const MODEL = 'gemini-2.5-flash'
+const MAX_BODY_BYTES = 8 * 1024 * 1024 // receipt photos are sent as base64
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
@@ -20,6 +21,14 @@ export async function onRequestPost(context: {
   env: Env
 }): Promise<Response> {
   const { request, env } = context
+
+  // Only the app itself may use this proxy (it spends the owner's Gemini quota), and the
+  // request size is capped so it can't be used to push arbitrarily large payloads.
+  const origin = request.headers.get('Origin')
+  if (origin && new URL(origin).host !== new URL(request.url).host) return json({ error: 'Forbidden' }, 403)
+  const declaredLength = Number(request.headers.get('Content-Length') ?? 0)
+  if (declaredLength > MAX_BODY_BYTES) return json({ error: 'Request too large' }, 413)
+
   if (!env.GEMINI_API_KEY) return json({ error: 'AI is not configured on the server' }, 500)
 
   try {

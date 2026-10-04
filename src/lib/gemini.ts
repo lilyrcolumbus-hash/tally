@@ -3,12 +3,30 @@ import { DEFAULT_CATEGORY_ID } from '@/config/categories'
 import { getCategories } from '@/lib/categoryStore'
 import { normalizeUnit } from '@/lib/utils'
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-const hasClientKey = Boolean(apiKey && !apiKey.includes('YOUR_'))
-// In production we call a server-side proxy (/api/extract) so the key is never
-// shipped in the browser bundle. In dev, a VITE_GEMINI_API_KEY calls Gemini directly.
-const useProxy = !hasClientKey && import.meta.env.PROD
-export const isGeminiConfigured = hasClientKey || useProxy
+const GEMINI_KEY_STORAGE = 'tally_gemini_key'
+const envKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
+
+/** The Gemini key entered in Settings (stored only in this browser), falling back to a build-time dev key. */
+export function loadGeminiKey(): string {
+  try {
+    const stored = localStorage.getItem(GEMINI_KEY_STORAGE)
+    if (stored) return stored
+  } catch {
+    // Unreadable storage: use the build-time value below.
+  }
+  return envKey && !envKey.includes('YOUR_') ? envKey : ''
+}
+
+export function saveGeminiKey(key: string): void {
+  if (key.trim()) localStorage.setItem(GEMINI_KEY_STORAGE, key.trim())
+  else localStorage.removeItem(GEMINI_KEY_STORAGE)
+}
+
+// With no personal key, production falls back to a server-side proxy (/api/extract) so no key is
+// ever shipped in the bundle. With a personal key, the browser calls Gemini directly.
+export function isGeminiConfigured(): boolean {
+  return Boolean(loadGeminiKey()) || import.meta.env.PROD
+}
 
 const MODEL = 'gemini-2.5-flash'
 
@@ -123,7 +141,8 @@ const GENERATION_CONFIG = { responseMimeType: 'application/json', temperature: 0
 
 /** Calls Gemini directly (dev, with client key) or via the secure proxy (prod). */
 async function geminiGenerate(parts: GeminiPart[]): Promise<string> {
-  if (hasClientKey && apiKey) {
+  const apiKey = loadGeminiKey()
+  if (apiKey) {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
       {
@@ -155,7 +174,7 @@ function readText(data: GeminiResponse): string {
 }
 
 export async function extractEntries(input: ExtractionInput): Promise<ExtractionResult> {
-  if (!isGeminiConfigured) {
+  if (!isGeminiConfigured()) {
     // Offline mode can only read TYPED text. Voice/photo carry no text to parse —
     // returning a blank draft there would be inventing a record we never read.
     if (!input.text || !input.text.trim()) {

@@ -76,7 +76,7 @@ export function CapturePanel() {
   }
 
   const handleMic = async () => {
-    if (!isGeminiConfigured) {
+    if (!isGeminiConfigured()) {
       toast('Voice needs the AI key. Type it for now, or add VITE_GEMINI_API_KEY.', { icon: '🎤' })
       return
     }
@@ -98,7 +98,7 @@ export function CapturePanel() {
   }
 
   const handlePhoto = async (file: File) => {
-    if (!isGeminiConfigured) {
+    if (!isGeminiConfigured()) {
       toast('Receipt photos need the AI key. Type it for now, or add VITE_GEMINI_API_KEY.', { icon: '📸' })
       return
     }

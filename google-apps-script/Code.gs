@@ -4,8 +4,11 @@
 // category = proyecto (minúsculas), NO hay campo project
 // ================================================================
 
-const SHEET_ID = '12UIZT1Kp_K-kehqxh_7zHXPFnhfuSL2TfJbESewb90o';
-const TOKEN    = 'tally2024';
+// Configuration lives in Script Properties (Project Settings -> Script properties), never in code:
+//   SHEET_ID    - the id of your spreadsheet (the long string in its URL)
+//   TALLY_TOKEN - a long random string; enter the same value in the app (Settings)
+const SHEET_ID = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+const TOKEN    = PropertiesService.getScriptProperties().getProperty('TALLY_TOKEN');
 const NUM_COLS = 16; // A..P — see entryToRow for the column map
 
 // Category map from app → project name in Sheet. Categories are now
@@ -79,7 +82,7 @@ function doPost(e) {
 
     // Token check
     var tok = raw.token || entry.token || '';
-    if (tok !== TOKEN) {
+    if (!TOKEN || !SHEET_ID || tok !== TOKEN) {
       return ContentService
         .createTextOutput(JSON.stringify({ok:false, error:'Unauthorized'}))
         .setMimeType(ContentService.MimeType.JSON);

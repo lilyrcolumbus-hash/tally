@@ -24,7 +24,10 @@ export function StatsPage() {
     const map = new Map<string, { earned: number; spent: number }>()
     for (const e of entries) {
       if (e.currency !== currency || !inPeriod(e.createdAt, period)) continue
-      if (e.type !== 'income' && e.type !== 'expense') continue
+      // Same rule as financeForPeriod so each project's numbers add up to the headline totals:
+      // purchases of inventory count as spend, but consuming your own stock does not.
+      const isSpend = e.type === 'inventory' || (e.type === 'expense' && !e.isConsumption)
+      if (e.type !== 'income' && !isSpend) continue
       const cid = normalizeCategoryId(e.category)
       const c = map.get(cid) ?? { earned: 0, spent: 0 }
       if (e.type === 'income') c.earned += e.total ?? 0

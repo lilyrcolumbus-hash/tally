@@ -1,8 +1,35 @@
 import type { Entry } from '@/types'
 
-const webhook = import.meta.env.VITE_SHEETS_WEBHOOK_URL as string | undefined
-const token = import.meta.env.VITE_SHEETS_TOKEN as string | undefined
-export const isSheetsConfigured = Boolean(webhook && webhook.startsWith('http'))
+const STORAGE_KEY = 'tally_sheets'
+const envWebhook = import.meta.env.VITE_SHEETS_WEBHOOK_URL as string | undefined
+const envToken = import.meta.env.VITE_SHEETS_TOKEN as string | undefined
+
+export interface SheetsConfig {
+  url: string
+  token: string
+}
+
+/** The Sheets connection entered in Settings (stored only in this browser), falling back to build-time env vars. */
+export function loadSheetsConfig(): SheetsConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SheetsConfig>
+      return { url: parsed.url ?? '', token: parsed.token ?? '' }
+    }
+  } catch {
+    // Unreadable storage: use the build-time values below.
+  }
+  return { url: envWebhook ?? '', token: envToken ?? '' }
+}
+
+export function saveSheetsConfig(config: SheetsConfig): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ url: config.url.trim(), token: config.token.trim() }))
+}
+
+export function isSheetsConfigured(): boolean {
+  return loadSheetsConfig().url.startsWith('http')
+}
 
 export type SheetAction = 'upsert' | 'delete'
 
@@ -13,7 +40,8 @@ export type SheetAction = 'upsert' | 'delete'
  * be read from the JSON body's `ok` field, not the HTTP status.
  */
 async function sendToSheet(action: SheetAction, entry: Entry): Promise<boolean> {
-  if (!webhook) return true
+  const { url: webhook, token } = loadSheetsConfig()
+  if (!webhook.startsWith('http')) return true
   try {
     const res = await fetch(webhook, {
       method: 'POST',
