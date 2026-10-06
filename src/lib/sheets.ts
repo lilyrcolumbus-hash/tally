@@ -1,8 +1,10 @@
 import type { Entry } from '@/types'
 
 const STORAGE_KEY = 'tally_sheets'
-const envWebhook = import.meta.env.VITE_SHEETS_WEBHOOK_URL as string | undefined
-const envToken = import.meta.env.VITE_SHEETS_TOKEN as string | undefined
+// Build-time defaults are for local development only. A public build must never ship someone's own Sheet:
+// whoever uses the demo enters their own connection in Settings, and without one entries stay on the device.
+const envWebhook = import.meta.env.DEV ? (import.meta.env.VITE_SHEETS_WEBHOOK_URL as string | undefined) : undefined
+const envToken = import.meta.env.DEV ? (import.meta.env.VITE_SHEETS_TOKEN as string | undefined) : undefined
 
 export interface SheetsConfig {
   url: string
