@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/card.png" alt="Tally"></p>
+
 # Tally — Inventory & Money, tallied
 
 **Live demo:** [tally-6y4.pages.dev](https://tally-6y4.pages.dev) — works instantly in local + demo mode, no account needed.
